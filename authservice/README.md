@@ -73,3 +73,63 @@ Signup successful for user: example@gmail.com
 ```
 Logged out successfully
 ```
+
+## cURL testcases (qua API Gateway)
+
+Giả định API Gateway chạy ở `http://localhost:8080`.
+
+1) Signup
+```bash
+curl -i -X POST \
+  http://localhost:8080/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "example@gmail.com",
+    "password": "12345",
+    "passwordConfirm": "12345"
+  }'
+```
+Kỳ vọng: `200 OK` và body chứa chuỗi "Signup successful for user: example@gmail.com".
+
+2) Login (nhận Access/Refresh token)
+```bash
+curl -s -X POST \
+  http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "example@gmail.com",
+    "password": "12345"
+  }'
+```
+Kỳ vọng: JSON gồm `userId`, `accessToken`, `refreshToken`, `tokenType`, `email`, `role`.
+
+3) Refresh (dùng refreshToken để lấy accessToken mới)
+```bash
+curl -s -X POST \
+  http://localhost:8080/api/auth/refresh \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "<REFRESH_TOKEN>"
+  }'
+```
+Kỳ vọng: JSON chứa accessToken mới.
+
+4) Logout (đưa access token vào blacklist)
+```bash
+curl -i -X POST \
+  http://localhost:8080/api/auth/logout \
+  -H "Authorization: Bearer <ACCESS_TOKEN>"
+```
+Kỳ vọng: `200 OK` và body "Logged out successfully".
+
+### Negative cases
+- Sai mật khẩu:
+```bash
+curl -i -X POST http://localhost:8080/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"example@gmail.com","password":"wrong"}'
+```
+Kỳ vọng: `401 Unauthorized` hoặc lỗi định nghĩa sẵn.
+
+- Token bị blacklist khi gọi service khác:
+  - Sau khi logout, dùng lại `<ACCESS_TOKEN>` để gọi `/api/users/**` qua Gateway sẽ nhận `401 Unauthorized`.

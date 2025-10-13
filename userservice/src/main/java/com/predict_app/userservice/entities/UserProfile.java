@@ -16,7 +16,6 @@ import java.util.UUID;
 public class UserProfile {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private UUID userId;
 
     @Column(nullable = false, length = 100)
@@ -28,19 +27,19 @@ public class UserProfile {
     @Column(nullable = false)
     private Integer experience;
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false)
     private Double income; // Annual income in $K
 
     @Column(nullable = false)
     private Integer family;
 
-    @Column(nullable = false, name = "cc_avg", precision = 10, scale = 2)
+    @Column(nullable = false, name = "cc_avg")
     private Double ccAvg; // Average monthly credit card spend
 
     @Column(nullable = false)
     private Integer education; // 1=Undergrad, 2=Graduate, 3=Doctoral
 
-    @Column(nullable = false, precision = 10, scale = 2)
+    @Column(nullable = false)
     private Double mortgage; // Mortgage loan amount in $K
 
     @Column(nullable = false, name = "securities_account")

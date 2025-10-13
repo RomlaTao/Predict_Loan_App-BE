@@ -11,6 +11,8 @@
     <packaging>pom</packaging>
 
     <modules>
+        <module>eurekaserver</module>
+        <module>apigateway</module>
         <module>authservice</module>
         <module>userservice</module>
     </modules>
