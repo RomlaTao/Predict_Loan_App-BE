@@ -3,6 +3,7 @@ package com.predict_app.userservice.entities;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -19,45 +20,34 @@ public class UserProfile {
     private UUID userId;
 
     @Column(nullable = false, length = 100)
-    private String name;
+    private String fullName;
+
+    @Column(nullable = false, unique = true)
+    private String email; // từ authservice
+
+    @Column(nullable = false, length = 50)
+    private String department; // Credit, Risk, Operations, etc.
+
+    @Column(nullable = false, length = 50)
+    private String position; // Manager, Analyst, Officer, etc.
 
     @Column(nullable = false)
-    private Integer age;
+    private LocalDate hireDate;
+
+    @Column(length = 20)
+    private String phoneNumber;
+
+    @Column(length = 200)
+    private String address;
 
     @Column(nullable = false)
-    private Integer experience;
-
-    @Column(nullable = false)
-    private Double income; // Annual income in $K
-
-    @Column(nullable = false)
-    private Integer family;
-
-    @Column(nullable = false, name = "cc_avg")
-    private Double ccAvg; // Average monthly credit card spend
-
-    @Column(nullable = false)
-    private Integer education; // 1=Undergrad, 2=Graduate, 3=Doctoral
-
-    @Column(nullable = false)
-    private Double mortgage; // Mortgage loan amount in $K
-
-    @Column(nullable = false, name = "securities_account")
-    private Boolean securitiesAccount;
-
-    @Column(nullable = false, name = "cd_account")
-    private Boolean cdAccount;
-
-    @Column(nullable = false)
-    private Boolean online;
-
-    @Column(nullable = false, name = "credit_card")
-    private Boolean creditCard;
+    @Builder.Default
+    private Boolean isActive = true;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
-    @Column(name = "update_at")
+    @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
     @PrePersist

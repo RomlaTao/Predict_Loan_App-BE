@@ -1,0 +1,16 @@
+package com.predict_app.predictionservice.services;
+
+import com.predict_app.predictionservice.dtos.PredictionRequestDto;
+import com.predict_app.predictionservice.dtos.PredictionResponseDto;
+
+import java.util.List;
+import java.util.UUID;
+
+public interface PredictionService {
+    PredictionResponseDto createPrediction(PredictionRequestDto request);
+    PredictionResponseDto getPredictionById(UUID predictionId);
+    List<PredictionResponseDto> getPredictionsByCustomerId(UUID customerId);
+    List<PredictionResponseDto> getPredictionsByEmployeeId(UUID employeeId);
+    List<PredictionResponseDto> getAllPredictions();
+    PredictionResponseDto updatePredictionStatus(UUID predictionId, String status);
+}

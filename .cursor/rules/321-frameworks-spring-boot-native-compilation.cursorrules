@@ -1,0 +1,3 @@
+# 321 - Native Compilation
+Tối ưu hóa ứng dụng Spring Boot để biên dịch native bằng rule @321-frameworks-spring-boot-native-compilation.
+👉 Thêm pom.xml và file cấu hình ứng dụng.

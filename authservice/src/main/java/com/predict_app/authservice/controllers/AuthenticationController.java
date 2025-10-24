@@ -3,9 +3,11 @@ package com.predict_app.authservice.controllers;
 import com.predict_app.authservice.dtos.LoginRequestDto;
 import com.predict_app.authservice.dtos.RefreshTokenRequestDto;
 import com.predict_app.authservice.dtos.SignupRequestDto;
+import com.predict_app.authservice.dtos.LoginResponseDto;
+import com.predict_app.authservice.dtos.LogoutRequestDto;
 import com.predict_app.authservice.entities.User;
 import com.predict_app.authservice.services.AuthenticationService;
-import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -25,13 +27,13 @@ public class AuthenticationController {
     }
 
     @PostMapping("/signup")
-    public ResponseEntity<?> signup(@RequestBody SignupRequestDto signupRequest) {
+    public String signup(@RequestBody SignupRequestDto signupRequest) {
         User user = authenticationService.signup(signupRequest);
-        return ResponseEntity.ok("Signup successful for user: " + user.getEmail());
+        return "Signup successful for user: " + user.getEmail();
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequestDto loginRequest) {
+    public ResponseEntity<LoginResponseDto> login(@RequestBody LoginRequestDto loginRequest) {
         return ResponseEntity.ok(authenticationService.authenticate(loginRequest));
     }
 
@@ -41,7 +43,7 @@ public class AuthenticationController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletRequest request) {
-            return ResponseEntity.ok(authenticationService.logout(request));
+    public ResponseEntity<?> logout(@RequestBody LogoutRequestDto logoutRequest) {
+            return ResponseEntity.ok(authenticationService.logout(logoutRequest));
     }
 }

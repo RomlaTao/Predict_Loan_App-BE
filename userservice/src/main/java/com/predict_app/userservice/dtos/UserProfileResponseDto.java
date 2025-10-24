@@ -2,6 +2,7 @@ package com.predict_app.userservice.dtos;
 
 import lombok.*;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -12,19 +13,14 @@ import java.util.UUID;
 @Builder
 public class UserProfileResponseDto {
     private UUID userId;
-    private String name;
-    private int age;
-    private int experience;
-    private double income;
-    private int family;
-    private double ccAvg;
-    private int education;
-    private double mortgage;
-    private boolean securitiesAccount;
-    private boolean cdAccount;
-    private boolean online;
-    private boolean creditCard;
-    private boolean personalLoan; // mục tiêu dự đoán: có chấp nhận khoản vay cá nhân hay không
+    private String fullName;        
+    private String email;
+    private String department;
+    private String position;
+    private LocalDate hireDate;
+    private String phoneNumber;
+    private String address;
+    private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

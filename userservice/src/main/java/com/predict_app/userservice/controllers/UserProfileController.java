@@ -6,10 +6,11 @@ import com.predict_app.userservice.services.UserProfileService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/users/profiles")
+@RequestMapping("/api/user-profiles")
 public class UserProfileController {
 
     private final UserProfileService userProfileService;
@@ -35,8 +36,13 @@ public class UserProfileController {
         return ResponseEntity.ok(userProfileService.getProfileByUserId(userId));
     }
 
+    @GetMapping
+    public ResponseEntity<List<UserProfileResponseDto>> getAllProfiles() {
+        return ResponseEntity.ok(userProfileService.getAllProfiles());
+    }
+
     @PutMapping("/{userId}")
-    public ResponseEntity<UserProfileResponseDto> updateProfile(
+        public ResponseEntity<UserProfileResponseDto> updateProfile(
             @PathVariable UUID userId,
             @RequestBody UserProfileRequestDto request) {
         return ResponseEntity.ok(userProfileService.updateProfile(userId, request));

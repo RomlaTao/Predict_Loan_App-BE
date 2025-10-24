@@ -1,0 +1,3 @@
+# 313 - Local Testing / Docker Compose
+Cải thiện kiểm thử cục bộ với Docker Compose bằng rule @313-frameworks-spring-boot-local-testing.
+👉 Thêm docker-compose.yaml và cấu hình test vào ngữ cảnh.

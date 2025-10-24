@@ -5,6 +5,7 @@ import com.predict_app.authservice.dtos.LoginRequestDto;
 import com.predict_app.authservice.dtos.LoginResponseDto;
 import com.predict_app.authservice.dtos.RefreshTokenRequestDto;
 import com.predict_app.authservice.dtos.SignupRequestDto;
+import com.predict_app.authservice.dtos.LogoutRequestDto;
 import com.predict_app.authservice.entities.User;
 import com.predict_app.authservice.enums.Role;
 import com.predict_app.authservice.repositories.UserRepository;
@@ -13,7 +14,7 @@ import com.predict_app.authservice.securities.JwtTokenProvider;
 import com.predict_app.authservice.securities.UserPrincipal;
 import com.predict_app.authservice.services.AuthenticationService;
 import com.predict_app.authservice.services.RedisTokenService;
-import jakarta.servlet.http.HttpServletRequest;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -123,8 +124,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         );
     }
 
-    public String logout(HttpServletRequest request) {
-        String header = request.getHeader("Authorization");
+    public String logout(LogoutRequestDto logoutRequest) {
+        String header = logoutRequest.getAccessToken();
 
         if (header == null || !header.startsWith("Bearer ")) {
             throw new IllegalArgumentException("Missing or invalid Authorization header");

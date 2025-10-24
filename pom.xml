@@ -15,6 +15,9 @@
         <module>apigateway</module>
         <module>authservice</module>
         <module>userservice</module>
+        <module>customerservice</module>
+        <module>predictionservice</module>
+        <module>analysticservice</module>
     </modules>
 
     <name>Predict App BE</name>

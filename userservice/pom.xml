@@ -12,7 +12,7 @@
 	<artifactId>userservice</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>userservice</name>
-	<description>Demo project for Spring Boot</description>
+	<description>User Service for Predict App</description>
 	<url/>
 	<licenses>
 		<license/>

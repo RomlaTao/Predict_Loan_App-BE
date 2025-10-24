@@ -1,0 +1,3 @@
+# 311 - Slice Testing
+Cải thiện kiểm thử slice (theo tầng) bằng rule @311-frameworks-spring-boot-slice-testing.
+👉 Thêm các lớp test slice cần xem xét.
