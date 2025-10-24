@@ -1,0 +1,173 @@
+version: '3.8'
+
+# ===========================================
+# Infrastructure Services
+# ===========================================
+
+services:
+  # MySQL Database for CustomerService
+  mysql-customer:
+    image: mysql:8.0
+    container_name: mysql-customer
+    ports:
+      - "3309:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: customerservice
+      MYSQL_USER: customerservice
+      MYSQL_PASSWORD: customerservice
+    volumes:
+      - mysql_customer_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+
+  # MySQL Database for PredictionService
+  mysql-prediction:
+    image: mysql:8.0
+    container_name: mysql-prediction
+    ports:
+      - "3310:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: predictionservice
+      MYSQL_USER: predictionservice
+      MYSQL_PASSWORD: predictionservice
+    volumes:
+      - mysql_prediction_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+
+  # MySQL Database for UserService
+  mysql-user:
+    image: mysql:8.0
+    container_name: mysql-user
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: userservice
+      MYSQL_USER: userservice
+      MYSQL_PASSWORD: userservice
+    volumes:
+      - mysql_user_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+
+  # MySQL Database for AuthService
+  mysql-auth:
+    image: mysql:8.0
+    container_name: mysql-auth
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: authservice
+      MYSQL_USER: authservice
+      MYSQL_PASSWORD: authservice
+    volumes:
+      - mysql_auth_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+
+  # # MySQL Database for AnalyticsService
+  # mysql-analytics:
+  #   image: mysql:8.0
+  #   container_name: mysql-analytics
+  #   ports:
+  #     - "3311:3306"
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root
+  #     MYSQL_DATABASE: analysticservice
+  #     MYSQL_USER: analysticservice
+  #     MYSQL_PASSWORD: analysticservice
+  #   volumes:
+  #     - mysql_analytics_data:/var/lib/mysql
+  #   networks:
+  #     - predict-app-network
+  #   restart: unless-stopped
+  #   command: --default-authentication-plugin=mysql_native_password
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===========================================
+  # Application Services
+  # ===========================================
+
+  # Eureka Server (Service Discovery)
+  eureka-server:
+    image: openjdk:21-jre-slim
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+    volumes:
+      - ./eurekaserver/target/eurekaserver-0.0.1-SNAPSHOT.jar:/app/eurekaserver.jar
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    command: java -jar /app/eurekaserver.jar
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      
+volumes:
+  # Database volumes
+  mysql_customer_data:
+  mysql_prediction_data:
+  mysql_user_data:
+  mysql_auth_data:
+  # mysql_analytics_data:
+  
+  # Message broker volume
+  rabbitmq_data:
+  
+  # Cache volume
+  redis_data:
+
+networks:
+  predict-app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
