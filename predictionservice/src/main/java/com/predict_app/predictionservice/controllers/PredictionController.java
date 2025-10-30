@@ -25,17 +25,17 @@ public class PredictionController {
     }
 
     @GetMapping("/{predictionId}")
-    public ResponseEntity<PredictionResponseDto> getPrediction(@PathVariable UUID predictionId) {
+    public ResponseEntity<PredictionResponseDto> getPredictionById(@PathVariable UUID predictionId) {
         return ResponseEntity.ok(predictionService.getPredictionById(predictionId));
     }
 
     @GetMapping("/customer/{customerId}")
-    public ResponseEntity<List<PredictionResponseDto>> getPredictionsByCustomer(@PathVariable UUID customerId) {
+    public ResponseEntity<List<PredictionResponseDto>> getPredictionsByCustomerId(@PathVariable UUID customerId) {
         return ResponseEntity.ok(predictionService.getPredictionsByCustomerId(customerId));
     }
 
     @GetMapping("/employee/{employeeId}")
-    public ResponseEntity<List<PredictionResponseDto>> getPredictionsByEmployee(@PathVariable UUID employeeId) {
+    public ResponseEntity<List<PredictionResponseDto>> getPredictionsByEmployeeId(@PathVariable UUID employeeId) {
         return ResponseEntity.ok(predictionService.getPredictionsByEmployeeId(employeeId));
     }
 

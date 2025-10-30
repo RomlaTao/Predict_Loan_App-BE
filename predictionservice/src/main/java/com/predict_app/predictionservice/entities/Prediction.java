@@ -10,8 +10,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "predictions")
-@Getter
-@Setter
+@Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
@@ -26,38 +25,26 @@ public class Prediction {
     @Column(nullable = false)
     private UUID employeeId; // Nhân viên tạo prediction
 
-    @Column(nullable = false)
-    private PredictionStatus status; // PENDING, COMPLETED, FAILED
+    @Column
+    private PredictionStatus status;
 
     @Column(columnDefinition = "TEXT")
-    private String inputData; // JSON data gửi đến ML model
+    private String inputData; // Dữ liệu đầu vào
 
     @Column(columnDefinition = "TEXT")
-    private String predictionResult; // JSON kết quả từ ML model
+    private String predictionResult; // Kết quả từ ML model
 
     @Column
     private Double confidence; // Độ tin cậy của prediction
 
-    @Column
-    private String errorMessage; // Lỗi nếu có
-
     @Column(name = "created_at")
     private LocalDateTime createdAt;
-
-    @Column(name = "updated_at")
-    private LocalDateTime updatedAt;
 
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 
     @PrePersist
-    protected void onCreate() {
+    public void onCreate() {
         this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    public void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
     }
 }

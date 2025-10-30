@@ -135,12 +135,6 @@
 			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
 
-		<!-- OpenFeign: hỗ trợ service-to-service communication -->
-		<dependency>
-			<groupId>org.springframework.cloud</groupId>
-			<artifactId>spring-cloud-starter-openfeign</artifactId>
-		</dependency>
-
 		<!-- Testing Starter: hỗ trợ JUnit5, Mockito, Spring Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
