@@ -4,7 +4,15 @@ from datetime import datetime
 from loguru import logger
 from app.services.rabbitmq_service import RabbitMQService
 from app.services.prediction_service import PredictionService
-from app.models.schemas import PredictionRequest, PredictionResponse, RabbitMQMessage
+from app.models.schemas import (
+    PredictionRequest,
+    PredictionResponse,
+    RabbitMQMessage,
+    ModelPredictRequestedEvent,
+    ModelPredictCompletedEvent,
+    PredictionResultDto,
+)
+from app.config.settings import settings
 
 class PredictionConsumer:
     def __init__(self):
@@ -13,65 +21,62 @@ class PredictionConsumer:
         self.setup_consumer()
     
     def setup_consumer(self):
-        """Setup message consumer"""
+        """Setup message consumer for model-predict-requested"""
         self.rabbitmq_service.channel.basic_qos(prefetch_count=1)
         self.rabbitmq_service.channel.basic_consume(
-            queue='ml.prediction.request',
-            on_message_callback=self.process_prediction_request
+            queue=settings.model_predict_requested_queue,
+            on_message_callback=self.process_model_predict_requested
         )
     
-    def process_prediction_request(self, ch, method, properties, body):
-        """Process incoming prediction request"""
+    def process_model_predict_requested(self, ch, method, properties, body):
+        """Process ModelPredictRequestedEvent from Java services"""
         try:
-            # Parse message
-            message_data = json.loads(body)
-            message = RabbitMQMessage(**message_data)
-            
-            logger.info(f"Processing prediction request: {message.correlation_id}")
-            
-            # Update status to PROCESSING
-            message.status = "PROCESSING"
-            
-            # Make prediction using prediction service
-            response = self.prediction_service.predict(message.request)
-            
-            # Update message with response
-            message.response = response
-            message.status = "COMPLETED"
-            message.timestamp = datetime.now()
-            
-            # Publish response
-            self.rabbitmq_service.publish_response(message.dict())
-            
-            # Acknowledge message
+            data = json.loads(body)
+            event = ModelPredictRequestedEvent(**data)
+
+            logger.info(f"Received model-predict-requested for predictionId={event.predictionId}")
+
+            # Transform input to model expected keys
+            features = {
+                'Age': event.input.age,
+                'Experience': event.input.experience,
+                'Income': event.input.income,
+                'Family': event.input.family,
+                'Education': event.input.education,
+                'Mortgage': event.input.mortgage,
+                'Securities_Account': 1 if event.input.securitiesAccount else 0,
+                'CD_Account': 1 if event.input.cdAccount else 0,
+                'Online': 1 if event.input.online else 0,
+                'CreditCard': 1 if event.input.creditCard else 0,
+                'ann_CCAvg': event.input.ccAvg,
+            }
+
+            start_ts = datetime.now()
+            prediction, confidence, probabilities = self.prediction_service.predict_from_dict(features)
+            inference_ms = int((datetime.now() - start_ts).total_seconds() * 1000)
+
+            # Derive label string
+            label = 'approve' if prediction else 'reject'
+
+            completed = ModelPredictCompletedEvent(
+                predictionId=event.predictionId,
+                customerId=event.customerId,
+                result=PredictionResultDto(
+                    label=label,
+                    probability=confidence,
+                    modelVersion='v1',
+                    inferenceTimeMs=inference_ms,
+                ),
+                predictedAt=datetime.now(),
+            )
+
+            self.rabbitmq_service.publish_model_predict_completed(completed.dict())
+
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            
-            logger.info(f"Completed prediction for correlation_id: {message.correlation_id}")
+            logger.info("Processed model-predict-requested and published completed event")
             
         except Exception as e:
             logger.error(f"Error processing prediction request: {e}")
-            
-            # Send error response
-            try:
-                error_message = RabbitMQMessage(
-                    correlation_id=message.correlation_id,
-                    request_id=message.request_id,
-                    request=message.request,
-                    response=PredictionResponse(
-                        prediction=False,
-                        confidence=0.0,
-                        probabilities={"Không chấp nhận": 1.0, "Chấp nhận": 0.0},
-                        message=f"Error: {str(e)}",
-                        timestamp=datetime.now()
-                    ),
-                    timestamp=datetime.now(),
-                    status="FAILED"
-                )
-                
-                self.rabbitmq_service.publish_response(error_message.dict())
-                
-            except Exception as send_error:
-                logger.error(f"Error sending error response: {send_error}")
             
             # Reject message
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)

@@ -15,10 +15,19 @@ class Settings(BaseSettings):
     rabbitmq_password: str = "guest"
     rabbitmq_virtual_host: str = "/"
     
-    # Queues
+    # Legacy prediction queues (kept for backward compatibility)
     prediction_request_queue: str = "ml.prediction.request"
     prediction_response_queue: str = "ml.prediction.response"
     prediction_exchange: str = "ml.prediction.exchange"
+
+    # New event-driven integration (align with Java services)
+    model_predict_requested_exchange: str = "model-predict-requested-exchange"
+    model_predict_requested_queue: str = "model-predict-requested-queue"
+    model_predict_requested_routing_key: str = "model-predict.requested"
+
+    model_predict_completed_exchange: str = "model-predict-completed-exchange"
+    model_predict_completed_queue: str = "model-predict-completed-queue"
+    model_predict_completed_routing_key: str = "model-predict.completed"
     
     # Model
     model_path: str = "models/knn_model.joblib"
