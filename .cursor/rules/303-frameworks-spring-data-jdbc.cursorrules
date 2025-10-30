@@ -1,3 +1,0 @@
-# 303 - Spring Data JDBC
-Cải thiện phần triển khai Spring Data JDBC bằng rule @303-frameworks-spring-data-jdbc.
-👉 Thêm các lớp repository và entity vào ngữ cảnh.
