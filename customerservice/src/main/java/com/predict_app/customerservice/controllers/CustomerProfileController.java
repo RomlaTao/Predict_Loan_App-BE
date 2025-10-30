@@ -2,7 +2,6 @@ package com.predict_app.customerservice.controllers;
 
 import com.predict_app.customerservice.dtos.CustomerProfileRequestDto;
 import com.predict_app.customerservice.dtos.CustomerProfileResponseDto;
-import com.predict_app.customerservice.dtos.MLModelRequestDto;
 import com.predict_app.customerservice.services.CustomerProfileService;
 
 import org.springframework.http.ResponseEntity;
@@ -67,20 +66,5 @@ public class CustomerProfileController {
     @GetMapping("/pending")
     public ResponseEntity<List<CustomerProfileResponseDto>> getPendingCustomers() {
         return ResponseEntity.ok(customerProfileService.getPendingCustomers());
-    }
-
-    @PostMapping("/{customerId}/approve")
-    public ResponseEntity<CustomerProfileResponseDto> approveCustomer(@PathVariable UUID customerId) {
-        return ResponseEntity.ok(customerProfileService.approveCustomer(customerId));
-    }
-
-    @PostMapping("/{customerId}/reject")
-    public ResponseEntity<CustomerProfileResponseDto> rejectCustomer(@PathVariable UUID customerId) {
-        return ResponseEntity.ok(customerProfileService.rejectCustomer(customerId));
-    }
-
-    @GetMapping("/{customerId}/ml-data")
-    public ResponseEntity<MLModelRequestDto> getCustomerMLData(@PathVariable UUID customerId) {
-        return ResponseEntity.ok(customerProfileService.getCustomerMLData(customerId));
     }
 }

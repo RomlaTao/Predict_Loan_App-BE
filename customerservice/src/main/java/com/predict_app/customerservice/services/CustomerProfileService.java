@@ -2,7 +2,6 @@ package com.predict_app.customerservice.services;
 
 import com.predict_app.customerservice.dtos.CustomerProfileRequestDto;
 import com.predict_app.customerservice.dtos.CustomerProfileResponseDto;
-import com.predict_app.customerservice.dtos.MLModelRequestDto;
 
 import java.util.List;
 import java.util.UUID;
@@ -27,7 +26,4 @@ public interface CustomerProfileService {
     // Loan approval management
     CustomerProfileResponseDto approveCustomer(UUID customerId);
     CustomerProfileResponseDto rejectCustomer(UUID customerId);
-    
-    // ML Model data
-    MLModelRequestDto getCustomerMLData(UUID customerId);
 }

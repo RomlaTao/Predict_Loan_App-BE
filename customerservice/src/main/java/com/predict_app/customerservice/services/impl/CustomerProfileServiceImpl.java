@@ -2,7 +2,6 @@ package com.predict_app.customerservice.services.impl;
 
 import com.predict_app.customerservice.dtos.CustomerProfileRequestDto;
 import com.predict_app.customerservice.dtos.CustomerProfileResponseDto;
-import com.predict_app.customerservice.dtos.MLModelRequestDto;
 import com.predict_app.customerservice.entities.CustomerProfile;
 import com.predict_app.customerservice.repositories.CustomerProfileRepository;
 import com.predict_app.customerservice.services.CustomerProfileService;
@@ -87,14 +86,6 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
         CustomerProfile updatedProfile = customerProfileRepository.save(existingProfile);
         return mapToResponseDto(updatedProfile);
     }
-
-    // @Override
-    // public void deleteCustomer(UUID customerId) {
-    //     if (!customerProfileRepository.existsById(customerId)) {
-    //         throw new RuntimeException("Customer profile not found");
-    //     }
-    //     customerProfileRepository.deleteById(customerId);
-    // }
 
     @Override
     public List<CustomerProfileResponseDto> getApprovedCustomers() {
@@ -188,26 +179,6 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .personalLoan(customerProfile.getPersonalLoan())
                 .createdAt(customerProfile.getCreatedAt())
                 .updatedAt(customerProfile.getUpdatedAt())
-                .build();
-    }
-
-    @Override
-    public MLModelRequestDto getCustomerMLData(UUID customerId) {
-        CustomerProfile customerProfile = customerProfileRepository.findById(customerId)
-                .orElseThrow(() -> new RuntimeException("Customer profile not found"));
-        
-        return MLModelRequestDto.builder()
-                .age(customerProfile.getAge())
-                .experience(customerProfile.getExperience())
-                .income(customerProfile.getIncome())
-                .family(customerProfile.getFamily())
-                .education(customerProfile.getEducation())
-                .mortgage(customerProfile.getMortgage())
-                .securitiesAccount(customerProfile.getSecuritiesAccount() ? 1 : 0)
-                .cdAccount(customerProfile.getCdAccount() ? 1 : 0)
-                .online(customerProfile.getOnline() ? 1 : 0)
-                .creditCard(customerProfile.getCreditCard() ? 1 : 0)
-                .annCcAvg(customerProfile.getCcAvg())
                 .build();
     }
 }

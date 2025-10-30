@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.predict_app</groupId>
-	<artifactId>userservice</artifactId>
+	<artifactId>customerservice</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>userservice</name>
-	<description>Demo project for Spring Boot</description>
+	<name>customerservice</name>
+	<description>Customer Service for Predict App</description>
 	<url/>
 	<licenses>
 		<license/>
@@ -123,7 +123,12 @@
 			<scope>provided</scope>
 		</dependency>
 
-
+		<!-- RabbitMQ Starter: hỗ trợ message broker -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+		
 		<!-- Testing Starter: hỗ trợ JUnit5, Mockito, Spring Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
