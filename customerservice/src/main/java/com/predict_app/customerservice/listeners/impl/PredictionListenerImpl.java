@@ -8,6 +8,9 @@ import com.predict_app.customerservice.dtos.events.CustomerEnrichedEventDto;
 import com.predict_app.customerservice.publishers.CustomerProfilePublisher;
 
 import com.rabbitmq.client.Channel;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.support.AmqpHeaders;
 import org.springframework.stereotype.Service;
 import org.springframework.messaging.handler.annotation.Header;
@@ -17,6 +20,8 @@ import java.time.LocalDateTime;
 
 @Service
 public class PredictionListenerImpl implements PredictionListener {
+
+    private static final Logger logger = LoggerFactory.getLogger(PredictionListenerImpl.class);
 
     @Autowired
     private final CustomerProfileRepository customerProfileRepository;
@@ -29,26 +34,50 @@ public class PredictionListenerImpl implements PredictionListener {
         this.customerProfilePublisher = customerProfilePublisher;
     }
 
+    @RabbitListener(queues = "${rabbitmq.queue.customer-profile-requested}")
     @Override
     public void handlePredictionRequestedEvent(PredictionRequestedEventDto event,
                                     Channel channel,
                                     @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
+        long startTime = System.currentTimeMillis();
+        String predictionId = event.getPredictionId() != null ? event.getPredictionId().toString() : "null";
+        String customerId = event.getCustomerId() != null ? event.getCustomerId().toString() : "null";
+        
+        logger.info("📥 [CUSTOMER] Received PredictionRequestedEvent - PredictionId: {}, CustomerId: {}, EmployeeId: {}, DeliveryTag: {}", 
+            predictionId, customerId, event.getEmployeeId(), deliveryTag);
+        
         try {
+            // Validation
             if (event.getPredictionId() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Prediction ID is required - DeliveryTag: {}", deliveryTag);
                 throw new RuntimeException("Prediction ID is required");
             }
             if (event.getCustomerId() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Customer ID is required - PredictionId: {}, DeliveryTag: {}", 
+                    predictionId, deliveryTag);
                 throw new RuntimeException("Customer ID is required");
             }
             if (event.getEmployeeId() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Employee ID is required - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
+                    predictionId, customerId, deliveryTag);
                 throw new RuntimeException("Employee ID is required");
             }
 
+            logger.debug("🔍 [CUSTOMER] Fetching customer profile from database - CustomerId: {}", customerId);
+            
             // Lấy customer profile
             CustomerProfile customerProfile = customerProfileRepository.findById(event.getCustomerId())
-                .orElseThrow(() -> new RuntimeException("Customer profile not found"));
+                .orElseThrow(() -> {
+                    logger.error("❌ [CUSTOMER] Customer profile not found - CustomerId: {}, PredictionId: {}", 
+                        customerId, predictionId);
+                    return new RuntimeException("Customer profile not found");
+                });
+
+            logger.info("✅ [CUSTOMER] Customer profile found - CustomerId: {}, FullName: {}, Age: {}, Experience: {}", 
+                customerId, customerProfile.getFullName(), customerProfile.getAge(), customerProfile.getExperience());
 
             // Tạo customer enriched event
+            logger.debug("🔄 [CUSTOMER] Building CustomerEnrichedEventDto - PredictionId: {}", predictionId);
             CustomerEnrichedEventDto customerEnrichedEventDto = CustomerEnrichedEventDto.builder()
                 .predictionId(event.getPredictionId())
                 .customer(CustomerEnrichedEventDto.CustomerDto.builder()
@@ -72,16 +101,38 @@ public class PredictionListenerImpl implements PredictionListener {
                 .build();
 
             // Publish customer enriched event
+            logger.info("📤 [CUSTOMER→PREDICTION] Publishing CustomerEnrichedEvent - PredictionId: {}, CustomerId: {}", 
+                predictionId, customerId);
             customerProfilePublisher.publishCustomerProfileEnrichedEvent(customerEnrichedEventDto);
 
-            // Acknowledge thành công
-            channel.basicAck(deliveryTag, false);
+            // Acknowledge thành công - chỉ ack sau khi tất cả operations thành công
+            try {
+                if (channel.isOpen()) {
+                    channel.basicAck(deliveryTag, false);
+                    logger.debug("✅ [CUSTOMER] Message acknowledged - DeliveryTag: {}", deliveryTag);
+                } else {
+                    logger.warn("⚠️ [CUSTOMER] Channel is closed, cannot acknowledge message - DeliveryTag: {}", deliveryTag);
+                }
+            } catch (IOException ackException) {
+                logger.error("❌ [CUSTOMER] Failed to acknowledge message - DeliveryTag: {}, Error: {}", 
+                    deliveryTag, ackException.getMessage(), ackException);
+                // Don't throw - message already processed successfully
+            }
+            
+            long processingTime = System.currentTimeMillis() - startTime;
+            logger.info("✅ [CUSTOMER] Successfully processed PredictionRequestedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}", 
+                predictionId, customerId, processingTime, deliveryTag);
         } catch (Exception e) {
+            long processingTime = System.currentTimeMillis() - startTime;
+            logger.error("❌ [CUSTOMER] Failed to process PredictionRequestedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}, Error: {}", 
+                predictionId, customerId, processingTime, deliveryTag, e.getMessage(), e);
             try {
                 // Reject và không requeue
                 channel.basicNack(deliveryTag, false, false);
+                logger.warn("⚠️ [CUSTOMER] Message rejected and not requeued - DeliveryTag: {}", deliveryTag);
             } catch (IOException ioException) {
-                // Log error
+                logger.error("❌ [CUSTOMER] Failed to acknowledge/reject message - DeliveryTag: {}, Error: {}", 
+                    deliveryTag, ioException.getMessage(), ioException);
                 throw new RuntimeException("Failed to acknowledge message", ioException);
             }
         }
