@@ -2,6 +2,7 @@ package com.predict_app.apigateway.filters;
 
 import com.predict_app.apigateway.configs.JwtConfig;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
@@ -28,6 +29,9 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
 
     @Autowired
     private JwtConfig jwtConfig;
+
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     public JwtAuthenticationFilter() {
         super(Config.class);
@@ -58,6 +62,10 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                 // Validate token
                 if (!jwtConfig.isTokenValid(token)) {
                     return handleUnauthorized(response, "Invalid or expired token");
+                }
+
+                if (redisTemplate.hasKey("blacklist:" + token)) {
+                    return handleUnauthorized(response, "Token is blacklisted or expired");
                 }
 
                 // Lấy thông tin user từ token

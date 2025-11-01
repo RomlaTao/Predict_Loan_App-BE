@@ -7,5 +7,5 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class LogoutRequestDto {
-    private String accessToken;
+    private String refreshToken;
 }

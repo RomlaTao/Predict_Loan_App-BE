@@ -1,0 +1,19 @@
+{
+  "include": [
+    "app",
+    "consumer.py",
+    "test_new_api.py"
+  ],
+  "exclude": [
+    "**/__pycache__",
+    "**/venv",
+    "**/.venv",
+    "**/node_modules"
+  ],
+  "reportMissingImports": "warning",
+  "reportMissingTypeStubs": false,
+  "pythonVersion": "3.11",
+  "pythonPlatform": "Linux",
+  "typeCheckingMode": "basic"
+}
+

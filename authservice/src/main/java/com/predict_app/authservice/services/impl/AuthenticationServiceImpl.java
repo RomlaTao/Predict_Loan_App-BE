@@ -4,6 +4,7 @@ import com.predict_app.authservice.configs.JwtConfig;
 import com.predict_app.authservice.dtos.LoginRequestDto;
 import com.predict_app.authservice.dtos.LoginResponseDto;
 import com.predict_app.authservice.dtos.RefreshTokenRequestDto;
+import com.predict_app.authservice.dtos.RefreshTokenResponseDto;
 import com.predict_app.authservice.dtos.SignupRequestDto;
 import com.predict_app.authservice.dtos.LogoutRequestDto;
 import com.predict_app.authservice.entities.User;
@@ -15,39 +16,40 @@ import com.predict_app.authservice.securities.UserPrincipal;
 import com.predict_app.authservice.services.AuthenticationService;
 import com.predict_app.authservice.services.RedisTokenService;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import jakarta.servlet.http.HttpServletRequest;
 
+/**
+ * Service implementation for authentication operations including:
+ * - User registration (signup)
+ * - User authentication (login)
+ * - Token refresh
+ * - User logout
+ */
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
 
-    @Autowired
     private final UserRepository userRepository;
-
-    @Autowired
     private final PasswordEncoder passwordEncoder;
-
-    @Autowired
     private final AuthenticationManager authenticationManager;
-
-    @Autowired
     private final JwtTokenProvider tokenProvider;
-
-    @Autowired
     private final CustomUserDetailsService customUserDetailsService;
-
-    @Autowired
     private final RedisTokenService redisTokenService;
-
-    @Autowired
     private final JwtConfig jwtConfig;
 
-    public AuthenticationServiceImpl(UserRepository userRepository, PasswordEncoder passwordEncoder, AuthenticationManager authenticationManager, JwtTokenProvider tokenProvider, CustomUserDetailsService customUserDetailsService, RedisTokenService redisTokenService, JwtConfig jwtConfig) {
+    public AuthenticationServiceImpl(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder,
+            AuthenticationManager authenticationManager,
+            JwtTokenProvider tokenProvider,
+            CustomUserDetailsService customUserDetailsService,
+            RedisTokenService redisTokenService,
+            JwtConfig jwtConfig) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.authenticationManager = authenticationManager;
@@ -57,40 +59,70 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         this.jwtConfig = jwtConfig;
     }
 
+    /**
+     * Register a new user account
+     * 
+     * @param signupRequest Signup request containing email, password, and password confirmation
+     * @return Created User entity
+     * @throws RuntimeException if email already exists or passwords don't match
+     */
+    @Override
     public User signup(SignupRequestDto signupRequest) {
-        // Kiểm tra email tồn tại
+        // Validate email uniqueness
         if (userRepository.existsByEmail(signupRequest.getEmail())) {
             throw new RuntimeException("Email already registered");
         }
 
-        // Kiểm tra password và passwordConfirm có trùng hay không
+        // Validate password confirmation
         if (!signupRequest.getPassword().equals(signupRequest.getPasswordConfirm())) {
-            throw new RuntimeException("Password and PasswordConfirm not exist");
+            throw new RuntimeException("Passwords do not match");
         }
 
+        // Create and save new user
         User user = User.builder()
                 .email(signupRequest.getEmail())
                 .password(passwordEncoder.encode(signupRequest.getPassword()))
-                .role(Role.USER) // mặc định role USER
+                .role(Role.USER)
                 .build();
 
         return userRepository.save(user);
     }
 
+    /**
+     * Authenticate user and generate access/refresh tokens
+     * 
+     * @param loginRequest Login request containing email and password
+     * @return LoginResponseDto containing user info and tokens
+     * @throws org.springframework.security.authentication.BadCredentialsException if credentials are invalid
+     */
+    @Override
     public LoginResponseDto authenticate(LoginRequestDto loginRequest) {
+        // Authenticate user credentials
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
-                        loginRequest.getEmail(), loginRequest.getPassword())
+                        loginRequest.getEmail(),
+                        loginRequest.getPassword())
         );
 
+        // Set authentication in security context
         SecurityContextHolder.getContext().setAuthentication(authentication);
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
+        // Generate tokens
         String accessToken = tokenProvider.generateAccessToken(userPrincipal);
         String refreshToken = tokenProvider.generateRefreshToken(userPrincipal.getUsername());
 
-        redisTokenService.saveToken("access:" + userPrincipal.getUsername(), accessToken, jwtConfig.getAccessTokenExpiration());
-        redisTokenService.saveToken("refresh:" + userPrincipal.getUsername(), refreshToken, jwtConfig.getRefreshTokenExpiration());
+        // Store tokens in Redis with expiration
+        redisTokenService.saveToken(
+                "access:" + userPrincipal.getUsername(),
+                accessToken,
+                jwtConfig.getAccessTokenExpiration()
+        );
+        redisTokenService.saveToken(
+                "refresh:" + userPrincipal.getUsername(),
+                refreshToken,
+                jwtConfig.getRefreshTokenExpiration()
+        );
 
         return new LoginResponseDto(
                 userPrincipal.getId(),
@@ -102,51 +134,105 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         );
     }
 
-    public LoginResponseDto refreshToken(RefreshTokenRequestDto refreshTokenRequest) {
+    /**
+     * Refresh access token using refresh token
+     * Implements token rotation: invalidates old tokens and generates new ones
+     * 
+     * @param refreshTokenRequest Request containing current access and refresh tokens
+     * @return RefreshTokenResponseDto containing new access and refresh tokens
+     * @throws SecurityException if refresh token is invalid, expired, or blacklisted
+     */
+    @Override
+    public RefreshTokenResponseDto refreshToken(RefreshTokenRequestDto refreshTokenRequest) {
         String refreshToken = refreshTokenRequest.getRefreshToken();
+        String accessToken = refreshTokenRequest.getAccessToken();
 
-        if (!tokenProvider.validateToken(refreshToken)) {
-            throw new RuntimeException("Invalid or expired refresh token");
+        // Validate refresh token
+        if (refreshToken == null || !tokenProvider.validateToken(refreshToken)) {
+            throw new SecurityException("Invalid or expired refresh token");
         }
 
+        // Check if refresh token is blacklisted
+        if (redisTokenService.isBlacklisted(refreshToken)) {
+            throw new SecurityException("Refresh token is blacklisted");
+        }
+
+        // Extract email from refresh token and load user
         String email = tokenProvider.getUsernameFromToken(refreshToken);
         UserPrincipal userPrincipal = (UserPrincipal) customUserDetailsService.loadUserByUsername(email);
 
-        String newAccessToken = tokenProvider.generateAccessToken(userPrincipal);
+        // Blacklist old access token if still valid
+        long accessTokenRemainingMillis = tokenProvider.getRemainingTime(accessToken);
+        if (accessTokenRemainingMillis > 0) {
+            redisTokenService.blacklistToken(accessToken, accessTokenRemainingMillis);
+        }
 
-        return new LoginResponseDto(
-                userPrincipal.getId(),
+        // Blacklist old refresh token (token rotation)
+        long refreshTokenRemainingMillis = tokenProvider.getRemainingTime(refreshToken);
+        if (refreshTokenRemainingMillis > 0) {
+            redisTokenService.blacklistToken(refreshToken, refreshTokenRemainingMillis);
+        }
+
+        // Generate new tokens
+        String newAccessToken = tokenProvider.generateAccessToken(userPrincipal);
+        String newRefreshToken = tokenProvider.generateRefreshToken(email);
+
+        // Store new tokens in Redis
+        redisTokenService.saveToken(
+                "access:" + email,
                 newAccessToken,
-                refreshToken,
-                "Bearer",
-                userPrincipal.getUsername(),
-                userPrincipal.getAuthorities().toString()
+                jwtConfig.getAccessTokenExpiration()
         );
+        redisTokenService.saveToken(
+                "refresh:" + email,
+                newRefreshToken,
+                jwtConfig.getRefreshTokenExpiration()
+        );
+
+        return new RefreshTokenResponseDto(newAccessToken, newRefreshToken);
     }
 
-    public String logout(LogoutRequestDto logoutRequest) {
-        String header = logoutRequest.getAccessToken();
-
+    /**
+     * Logout user and invalidate all tokens
+     * Allows logout even if access token is expired (to invalidate refresh token)
+     * 
+     * @param request HTTP request containing Authorization header
+     * @param logoutRequest Request containing refresh token
+     * @return Success message
+     * @throws SecurityException if authorization header is invalid or refresh token is invalid
+     */
+    @Override
+    public String logout(HttpServletRequest request, LogoutRequestDto logoutRequest) {
+        // Extract and validate Authorization header
+        String header = request.getHeader("Authorization");
         if (header == null || !header.startsWith("Bearer ")) {
-            throw new IllegalArgumentException("Missing or invalid Authorization header");
+            throw new SecurityException("Missing or invalid Authorization header");
         }
 
-        String accessToken = header.substring(7); // Bỏ "Bearer "
+        String accessToken = header.substring(7); // Remove "Bearer " prefix
+        String refreshToken = logoutRequest.getRefreshToken();
 
-        // Kiểm tra token hợp lệ
-        if (!tokenProvider.validateToken(accessToken)) {
-            throw new SecurityException("Invalid or expired access token");
+        // Validate refresh token (required for logout)
+        if (refreshToken == null || !tokenProvider.validateToken(refreshToken)) {
+            throw new SecurityException("Invalid or expired refresh token");
         }
 
-        // Tính thời gian còn lại của token
-        long remainingMillis = tokenProvider.getRemainingTime(accessToken);
+        // Blacklist access token if still valid
+        long accessTokenRemainingMillis = tokenProvider.getRemainingTime(accessToken);
+        if (accessTokenRemainingMillis > 0 && !redisTokenService.isBlacklisted(accessToken)) {
+            redisTokenService.blacklistToken(accessToken, accessTokenRemainingMillis);
+        }
 
-        // Đưa vào blacklist trong Redis
-        redisTokenService.blacklistToken(accessToken, remainingMillis);
+        // Blacklist refresh token
+        long refreshTokenRemainingMillis = tokenProvider.getRemainingTime(refreshToken);
+        if (refreshTokenRemainingMillis > 0) {
+            redisTokenService.blacklistToken(refreshToken, refreshTokenRemainingMillis);
+        }
 
-        // Xóa cache access token trong Redis (nếu có)
-        String username = tokenProvider.getUsernameFromToken(accessToken);
+        // Delete cached tokens from Redis
+        String username = tokenProvider.getUsernameFromToken(refreshToken);
         redisTokenService.deleteToken("access:" + username);
+        redisTokenService.deleteToken("refresh:" + username);
 
         return "Logged out successfully";
     }

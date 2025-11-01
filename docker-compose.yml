@@ -1,0 +1,432 @@
+# ===========================================
+# Infrastructure Services
+# ===========================================
+
+services:
+  # MySQL Database for AuthService
+  mysql-auth:
+    image: mysql:8.0
+    container_name: mysql-auth
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: authservice
+      MYSQL_USER: authservice
+      MYSQL_PASSWORD: authservice
+    volumes:
+      - mysql_auth_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+      
+  # MySQL Database for UserService
+  mysql-user:
+    image: mysql:8.0
+    container_name: mysql-user
+    ports:
+      - "3308:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: userservice
+      MYSQL_USER: userservice
+      MYSQL_PASSWORD: userservice
+    volumes:
+      - mysql_user_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # MySQL Database for CustomerService
+  mysql-customer:
+    image: mysql:8.0
+    container_name: mysql-customer
+    ports:
+      - "3309:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: customerservice
+      MYSQL_USER: customerservice
+      MYSQL_PASSWORD: customerservice
+    volumes:
+      - mysql_customer_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # MySQL Database for PredictionService
+  mysql-prediction:
+    image: mysql:8.0
+    container_name: mysql-prediction
+    ports:
+      - "3310:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: predictionservice
+      MYSQL_USER: predictionservice
+      MYSQL_PASSWORD: predictionservice
+    volumes:
+      - mysql_prediction_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # # MySQL Database for AnalyticsService
+  # mysql-analytics:
+  #   image: mysql:8.0
+  #   container_name: mysql-analytics
+  #   ports:
+  #     - "3311:3306"
+  #   environment:
+  #     MYSQL_ROOT_PASSWORD: root
+  #     MYSQL_DATABASE: analysticservice
+  #     MYSQL_USER: analysticservice
+  #     MYSQL_PASSWORD: analysticservice
+  #   volumes:
+  #     - mysql_analytics_data:/var/lib/mysql
+  #   networks:
+  #     - predict-app-network
+  #   restart: unless-stopped
+  #   command: --default-authentication-plugin=mysql_native_password
+
+  # RabbitMQ Message Broker
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"    # AMQP port
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # ===========================================
+  # Application Services
+  # ===========================================
+
+  # Eureka Server (Service Discovery)
+  eureka-server:
+    build: ./eurekaserver
+    container_name: eureka-server
+    ports:
+      - "8761:8761"
+    networks:
+      - predict-app-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8761/actuator/health"]
+      timeout: 10s
+      retries: 5
+      interval: 10s
+      start_period: 30s
+
+  # API Gateway (Routing, Load Balancing, Rate Limiting)
+  apigateway:
+    build:
+      context: ./apigateway
+      dockerfile: Dockerfile
+    container_name: apigateway
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE: http://eureka-server:8761/eureka/
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # AuthService (Authentication & Authorization)
+  authservice:
+    build:
+      context: ./authservice
+      dockerfile: Dockerfile
+    container_name: authservice
+    ports:
+      - "8005:8005"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-auth:3306/authservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: authservice
+      SPRING_DATASOURCE_PASSWORD: authservice
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      mysql-auth:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8005/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # UserService (User Profile Management)
+  userservice:
+    build:
+      context: ./userservice
+      dockerfile: Dockerfile
+    container_name: userservice
+    ports:
+      - "8006:8006"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-user:3306/userservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: userservice
+      SPRING_DATASOURCE_PASSWORD: userservice
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      mysql-user:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8006/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # CustomerService (Customer Profile Management)
+  customerservice:
+    build:
+      context: ./customerservice
+      dockerfile: Dockerfile
+    container_name: customerservice
+    ports:
+      - "8007:8007"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-customer:3306/customerservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: customerservice
+      SPRING_DATASOURCE_PASSWORD: customerservice
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      # RabbitMQ Queue Configuration for CustomerService
+      RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_REQUESTED: customer.profile.exchange
+      RABBITMQ_QUEUE_CUSTOMER_PROFILE_REQUESTED: customer.profile.request
+      RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_REQUESTED: customer.profile.requested
+      RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_ENRICHED: customer.profile.exchange
+      RABBITMQ_QUEUE_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
+      RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      mysql-customer:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8007/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # PredictionService (ML Prediction Management)
+  predictionservice:
+    build:
+      context: ./predictionservice
+      dockerfile: Dockerfile
+    container_name: predictionservice
+    ports:
+      - "8008:8008"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql-prediction:3306/predictionservice?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&createDatabaseIfNotExist=true
+      SPRING_DATASOURCE_USERNAME: predictionservice
+      SPRING_DATASOURCE_PASSWORD: predictionservice
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: guest
+      SPRING_RABBITMQ_PASSWORD: guest
+      # RabbitMQ Queue Configuration for PredictionService
+      RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_REQUESTED: customer.profile.exchange
+      RABBITMQ_QUEUE_CUSTOMER_PROFILE_REQUESTED: customer.profile.request
+      RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_REQUESTED: customer.profile.requested
+      RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_ENRICHED: customer.profile.exchange
+      RABBITMQ_QUEUE_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
+      RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
+      RABBITMQ_EXCHANGE_MODEL_PREDICT_REQUESTED: model.predict.exchange
+      RABBITMQ_QUEUE_MODEL_PREDICT_REQUESTED: model.predict.requested
+      RABBITMQ_ROUTING_KEY_MODEL_PREDICT_REQUESTED: model.predict.requested
+      RABBITMQ_EXCHANGE_MODEL_PREDICT_COMPLETED: model.predict.exchange
+      RABBITMQ_QUEUE_MODEL_PREDICT_COMPLETED: model.predict.completed
+      RABBITMQ_ROUTING_KEY_MODEL_PREDICT_COMPLETED: model.predict.completed
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      mysql-prediction:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8008/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ML Model Service (Python FastAPI Service)
+  ml-model-service:
+    build:
+      context: ./ml-model-service
+      dockerfile: Dockerfile
+    container_name: ml-model-service
+    ports:
+      - "8009:8009"
+    environment:
+      # RabbitMQ Configuration
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+      RABBITMQ_VIRTUAL_HOST: /
+      # RabbitMQ Queue Configuration (align with predictionservice)
+      MODEL_PREDICT_REQUESTED_EXCHANGE: model.predict.exchange
+      MODEL_PREDICT_REQUESTED_QUEUE: model.predict.requested
+      MODEL_PREDICT_REQUESTED_ROUTING_KEY: model.predict.requested
+      MODEL_PREDICT_COMPLETED_EXCHANGE: model.predict.exchange
+      MODEL_PREDICT_COMPLETED_QUEUE: model.predict.completed
+      MODEL_PREDICT_COMPLETED_ROUTING_KEY: model.predict.completed
+      # Model Configuration
+      MODEL_PATH: models/knn_model.joblib
+      SCALER_PATH: models/scaler.joblib
+      # Redis Configuration (optional, for caching)
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      # Application Configuration
+      HOST: 0.0.0.0
+      PORT: 8009
+      DEBUG: "false"
+      # Eureka Service Discovery Configuration
+      EUREKA_ENABLED: "true"
+      EUREKA_SERVER_URL: http://eureka-server:8761/eureka/
+      EUREKA_APP_NAME: ml-model-service
+      EUREKA_INSTANCE_HOST: ml-model-service
+      EUREKA_INSTANCE_PORT: 8009
+      EUREKA_LEASE_RENEWAL_INTERVAL: 30
+      EUREKA_LEASE_DURATION: 90
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8009/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+      
+volumes:
+  # Database volumes
+  mysql_customer_data:
+  mysql_prediction_data:
+  mysql_user_data:
+  mysql_auth_data:
+  # mysql_analytics_data:
+  
+  # Message broker volume
+  rabbitmq_data:
+  
+  # Cache volume
+  redis_data:
+
+networks:
+  predict-app-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

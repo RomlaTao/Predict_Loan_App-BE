@@ -187,7 +187,7 @@ def test_validation_errors():
 
 def main():
     """Run all tests"""
-    print("🚀 STARTING ML MODEL API TESTS")
+    print("🚀 STARTING ML MODEL SERVICE TESTS")
     print(f"Testing API at: {BASE_URL}")
     print(f"Test started at: {datetime.now()}")
     print("=" * 60)

@@ -1,7 +1,7 @@
-# ML Model API - Loan Prediction Service
+# ML Model Service - Loan Prediction Service
 
 ## Overview
-This is a refactored ML Model API service that provides loan prediction capabilities using machine learning models. The service is built with FastAPI and integrates with RabbitMQ for asynchronous message processing.
+This is a refactored ML Model Service that provides loan prediction capabilities using machine learning models. The service is built with FastAPI and integrates with RabbitMQ for asynchronous message processing and Eureka for service discovery.
 
 ## Architecture
 

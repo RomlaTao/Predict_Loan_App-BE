@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from loguru import logger
 from app.models.schemas import PredictionRequest, PredictionResponse
 from app.services.prediction_service import PredictionService
+from app.services.eureka_service import EurekaService
 from app.config.settings import settings
 from app.utils.logger import setup_logger
 from datetime import datetime
@@ -13,9 +14,12 @@ setup_logger()
 # Create FastAPI app
 app = FastAPI(
     title=settings.app_name,
-    description="ML Model API for Loan Prediction",
+    description="ML Model Service for Loan Prediction",
     version="1.0.0"
 )
+
+# Initialize Eureka service
+eureka_service = EurekaService()
 
 # Add CORS middleware
 app.add_middleware(
@@ -32,14 +36,14 @@ prediction_service = PredictionService()
 @app.get("/")
 async def root():
     """Root endpoint"""
-    return {"message": "ML Model API is running", "version": "1.0.0"}
+    return {"message": "ML Model Service is running", "version": "1.0.0"}
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint"""
+    """Health check endpoint - Only checks service status, no database/Redis checks"""
     return {
         "status": "healthy", 
-        "service": "ML Model API",
+        "service": "ML Model Service",
         "timestamp": datetime.now().isoformat()
     }
 
@@ -66,6 +70,16 @@ async def model_info():
         "scaler_path": settings.scaler_path,
         "status": "loaded"
     }
+
+@app.on_event("startup")
+async def startup_event():
+    """Startup event - Register with Eureka Server"""
+    await eureka_service.register()
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Shutdown event - Deregister from Eureka Server"""
+    await eureka_service.deregister()
 
 if __name__ == "__main__":
     import uvicorn

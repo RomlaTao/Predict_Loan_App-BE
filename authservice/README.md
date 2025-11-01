@@ -1,135 +1,434 @@
-# Script setup container
+# AuthService - Authentication & Authorization Service
 
-## MySQL (map cổng 3307 -> 3306)
-docker run -d --name authservice-mysql -e MYSQL_DATABASE=authdb -e MYSQL_ROOT_PASSWORD=root -e MYSQL_USER=authuser -e MYSQL_PASSWORD=authpass -p 3307:3306 -v auth_mysql_data:/var/lib/mysql mysql:8.4
+## Base URL
 
-# Postman testcases
+- **Local:** `http://localhost:8005`
+- **Via API Gateway:** `http://localhost:8080/api/auth`
 
-1) Signup
-- Method: POST
-- URL: {{baseUrl}}/api/auth/signup
-- Body (raw JSON):
-```
-{
-  "email": "example@gmail.com",
-  "password": "12345",
-  "passwordConfirm": "12345"
-}
-```
-- Response (String):
-```
-Signup successful for user: example@gmail.com
+---
+
+## Postman Test Cases
+
+### Environment Variables
+
+Trong Postman, tạo các variables sau:
+- `baseUrl`: `http://localhost:8005` (hoặc `http://localhost:8080/api/auth` nếu qua Gateway)
+- `accessToken`: Lưu access token sau khi login
+- `refreshToken`: Lưu refresh token sau khi login
+
+---
+
+### 1. Signup - Đăng ký tài khoản mới
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/signup`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "passwordConfirm": "password123"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `200 OK`
+- **Body:**
+  ```
+  Signup successful for user: user@example.com
+  ```
+
+**Postman Script (để tự động lưu response):**
+```javascript
+pm.test("Status code is 200", function () {
+    pm.response.to.have.status(200);
+});
+
+pm.test("Response contains success message", function () {
+    pm.expect(pm.response.text()).to.include("Signup successful");
+});
 ```
 
-2) Login
-- Method: POST
-- URL: {{baseUrl}}/api/auth/login
-- Body (raw JSON):
-```
-{
-    "email": "example@gmail.com",
-    "password": "12345"
-}
-```
-- Response (raw JSON):
-```
-{
+---
+
+### 2. Login - Đăng nhập
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/login`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `200 OK`
+- **Body (JSON):**
+  ```json
+  {
     "userId": "30a2cc2f-7d29-4cd9-bd60-f26244a15a78",
-    "accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJleGFtcGxlQGdtYWlsLmNvbSIsInJvbGVzIjpbIlNUVURFTlQiXSwiaWF0IjoxNzYwMTQ5NDcwLCJleHAiOjE3NjAyMzU4NzB9.L9Rg4dmOtzWtL9EbXwF6zB6GiW2yc1uLfaOW91UzJLo",
-    "refreshToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJleGFtcGxlQGdtYWlsLmNvbSIsImlhdCI6MTc2MDE0OTQ3MCwiZXhwIjoxNzYwNTgxNDcwfQ.um6ljpblLhK8IPxFY8uDpYt__GUS7hhNmE6Ie5rKwsw",
+    "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
     "tokenType": "Bearer",
-    "email": "example@gmail.com",
-    "role": "[STUDENT]"
-}
+    "email": "user@example.com",
+    "role": "[USER]"
+  }
+  ```
+
+**Postman Script (tự động lưu tokens):**
+```javascript
+pm.test("Status code is 200", function () {
+    pm.response.to.have.status(200);
+});
+
+pm.test("Response has tokens", function () {
+    var jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('accessToken');
+    pm.expect(jsonData).to.have.property('refreshToken');
+    
+    // Lưu tokens vào variables
+    pm.collectionVariables.set("accessToken", jsonData.accessToken);
+    pm.collectionVariables.set("refreshToken", jsonData.refreshToken);
+});
 ```
 
-3) Refresh
-- Method: POST
-- URL: {{baseUrl}}/api/auth/refresh
-- Body (raw JSON):
-```
-{
-  "refreshToken": "{Lấy refreshToken}"
-}
-```
-- Response (raw JSON):
-```
-{
-"userId": "30a2cc2f-7d29-4cd9-bd60-f26244a15a78",
-"accessToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJleGFtcGxlQGdtYWlsLmNvbSIsInJvbGVzIjpbIlNUVURFTlQiXSwiaWF0IjoxNzYwMTQ5NjIwLCJleHAiOjE3NjAyMzYwMjB9.2MOMEcC7MGUNCBFB54cD6KdJuaVm4J3gVQBrHnZEhQI",
-"refreshToken": "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJleGFtcGxlQGdtYWlsLmNvbSIsImlhdCI6MTc2MDE0OTQ3MCwiZXhwIjoxNzYwNTgxNDcwfQ.um6ljpblLhK8IPxFY8uDpYt__GUS7hhNmE6Ie5rKwsw",
-"tokenType": "Bearer",
-"email": "example@gmail.com",
-"role": "[STUDENT]"
-}
+---
+
+### 3. Refresh Token - Làm mới access token
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/refresh`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "accessToken": "{{accessToken}}",
+    "refreshToken": "{{refreshToken}}"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `200 OK`
+- **Body (JSON):**
+  ```json
+  {
+    "newAccessToken": "eyJhbGciOiJIUzI1NiJ9...",
+    "newRefreshToken": "eyJhbGciOiJIUzI1NiJ9..."
+  }
+  ```
+
+**Postman Script (tự động cập nhật tokens):**
+```javascript
+pm.test("Status code is 200", function () {
+    pm.response.to.have.status(200);
+});
+
+pm.test("Response has new tokens", function () {
+    var jsonData = pm.response.json();
+    pm.expect(jsonData).to.have.property('newAccessToken');
+    pm.expect(jsonData).to.have.property('newRefreshToken');
+    
+    // Cập nhật tokens mới
+    pm.collectionVariables.set("accessToken", jsonData.newAccessToken);
+    pm.collectionVariables.set("refreshToken", jsonData.newRefreshToken);
+});
 ```
 
-4) Logout
-- Method: POST
-- URL: {{baseUrl}}/api/auth/logout
-- Headers: Authorization: Bearer {{accessToken}}
+---
 
-- Response (String):
+### 4. Logout - Đăng xuất
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/logout`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  Authorization: Bearer {{accessToken}}
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `200 OK`
+- **Body:**
+  ```
+  Logged out successfully
+  ```
+
+**Postman Script:**
+```javascript
+pm.test("Status code is 200", function () {
+    pm.response.to.have.status(200);
+});
+
+pm.test("Logout successful", function () {
+    pm.expect(pm.response.text()).to.include("Logged out successfully");
+});
 ```
-Logged out successfully
-```
 
-## cURL testcases (qua API Gateway)
+---
 
-Giả định API Gateway chạy ở `http://localhost:8080`.
+## Negative Test Cases
 
-1) Signup
-```bash
-curl -i -X POST \
-  http://localhost:8080/api/auth/signup \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "example@gmail.com",
-    "password": "12345",
-    "passwordConfirm": "12345"
-  }'
-```
-Kỳ vọng: `200 OK` và body chứa chuỗi "Signup successful for user: example@gmail.com".
+### 5. Signup - Email đã tồn tại
 
-2) Login (nhận Access/Refresh token)
-```bash
-curl -s -X POST \
-  http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "example@gmail.com",
-    "password": "12345"
-  }'
-```
-Kỳ vọng: JSON gồm `userId`, `accessToken`, `refreshToken`, `tokenType`, `email`, `role`.
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/signup`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password123",
+    "passwordConfirm": "password123"
+  }
+  ```
 
-3) Refresh (dùng refreshToken để lấy accessToken mới)
-```bash
-curl -s -X POST \
-  http://localhost:8080/api/auth/refresh \
-  -H "Content-Type: application/json" \
-  -d '{
-    "refreshToken": "<REFRESH_TOKEN>"
-  }'
-```
-Kỳ vọng: JSON chứa accessToken mới.
+**Expected Response:**
+- **Status:** `400 Bad Request`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "Email already registered"
+  }
+  ```
 
-4) Logout (đưa access token vào blacklist)
-```bash
-curl -i -X POST \
-  http://localhost:8080/api/auth/logout \
-  -H "Authorization: Bearer <ACCESS_TOKEN>"
-```
-Kỳ vọng: `200 OK` và body "Logged out successfully".
+---
 
-### Negative cases
-- Sai mật khẩu:
-```bash
-curl -i -X POST http://localhost:8080/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"example@gmail.com","password":"wrong"}'
-```
-Kỳ vọng: `401 Unauthorized` hoặc lỗi định nghĩa sẵn.
+### 6. Signup - Mật khẩu không khớp
 
-- Token bị blacklist khi gọi service khác:
-  - Sau khi logout, dùng lại `<ACCESS_TOKEN>` để gọi `/api/users/**` qua Gateway sẽ nhận `401 Unauthorized`.
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/signup`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "email": "newuser@example.com",
+    "password": "password123",
+    "passwordConfirm": "password456"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `400 Bad Request`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 400,
+    "error": "Bad Request",
+    "message": "Passwords do not match"
+  }
+  ```
+
+---
+
+### 7. Login - Sai mật khẩu
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/login`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "wrongpassword"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `401 Unauthorized`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 401,
+    "error": "Unauthorized",
+    "message": "Invalid email or password"
+  }
+  ```
+
+---
+
+### 8. Refresh Token - Refresh token không hợp lệ
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/refresh`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "accessToken": "invalid_token",
+    "refreshToken": "invalid_refresh_token"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `403 Forbidden` hoặc `401 Unauthorized`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 403,
+    "error": "Forbidden",
+    "message": "Invalid or expired refresh token"
+  }
+  ```
+
+---
+
+### 9. Refresh Token - Refresh token đã bị blacklist
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/refresh`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "accessToken": "{{accessToken}}",
+    "refreshToken": "{{refreshToken}}"
+  }
+  ```
+*Lưu ý: Sử dụng refresh token sau khi đã logout*
+
+**Expected Response:**
+- **Status:** `403 Forbidden`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 403,
+    "error": "Forbidden",
+    "message": "Refresh token is blacklisted"
+  }
+  ```
+
+---
+
+### 10. Logout - Thiếu Authorization header
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/logout`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `403 Forbidden`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 403,
+    "error": "Forbidden",
+    "message": "Missing or invalid Authorization header"
+  }
+  ```
+
+---
+
+### 11. Logout - Access token không hợp lệ
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/logout`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  Authorization: Bearer invalid_token
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "refreshToken": "{{refreshToken}}"
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `403 Forbidden`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 403,
+    "error": "Forbidden",
+    "message": "Invalid or expired refresh token"
+  }
+  ```
+
+---
+
+## Postman Collection Setup
+
+### Tạo Collection Variables:
+
+1. Tạo Collection mới: `AuthService API`
+2. Vào **Variables** tab, thêm các biến:
+   - `baseUrl`: `http://localhost:8005`
+   - `accessToken`: (để trống, sẽ tự động set sau khi login)
+   - `refreshToken`: (để trống, sẽ tự động set sau khi login)
+
+### Test Flow:
+
+1. **Signup** → Tạo tài khoản mới
+2. **Login** → Lấy access token và refresh token (tự động lưu vào variables)
+3. **Refresh Token** → Test làm mới token (tự động cập nhật variables)
+4. **Logout** → Đăng xuất và invalidate tokens
+
+### Tips:
+
+- Sau khi **Login**, tokens sẽ tự động được lưu vào collection variables
+- Sau khi **Refresh Token**, tokens mới sẽ tự động cập nhật
+- Sau khi **Logout**, có thể test lại refresh token để xác nhận đã bị blacklist

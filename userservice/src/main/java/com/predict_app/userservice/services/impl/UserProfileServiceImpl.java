@@ -25,17 +25,15 @@ public class UserProfileServiceImpl implements UserProfileService {
     public UserProfileResponseDto createProfile(UserProfileRequestDto request) {
         System.out.println("Request userId: " + request.getUserId());
 
+        if (userProfileRepository.findByUserId(request.getUserId()).isPresent()) {
+            throw new RuntimeException("Profile already exists for userId: " + request.getUserId());
+        }
+
         // Manual mapping từ DTO sang Entity
         UserProfile profile = mapToEntity(request);
+        profile.onCreate();
 
-        System.out.println("Profile userId before save: " + profile.getUserId());
-
-        // onCreate() sẽ được tự động gọi bởi JPA @PrePersist
         userProfileRepository.save(profile);
-
-        System.out.println("Profile userId after save: " + profile.getUserId());
-
-        // Sử dụng mapper để chuyển đổi từ Entity sang Response DTO
         return mapToResponseDto(profile);
     }
 

@@ -1,9 +1,14 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from typing import Optional
 
 class Settings(BaseSettings):
+    model_config = ConfigDict(
+        protected_namespaces=('settings_',),  # Fix Pydantic warnings for "model_" prefix
+        env_file=".env"  # Load environment variables from .env file
+    )
     # Application
-    app_name: str = "ML Model API"
+    app_name: str = "ML Model Service"
     debug: bool = False
     host: str = "0.0.0.0"
     port: int = 8009
@@ -38,7 +43,13 @@ class Settings(BaseSettings):
     redis_port: int = 6379
     redis_db: int = 0
     
-    class Config:
-        env_file = ".env"
+    # Eureka Service Discovery
+    eureka_enabled: bool = True
+    eureka_server_url: str = "http://localhost:8761/eureka/"
+    eureka_app_name: str = "ml-model-service"
+    eureka_instance_host: str = "localhost"
+    eureka_instance_port: int = 8009
+    eureka_lease_renewal_interval: int = 30  # seconds
+    eureka_lease_duration: int = 90  # seconds
 
 settings = Settings()
