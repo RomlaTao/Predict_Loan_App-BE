@@ -3,6 +3,7 @@ package com.predict_app.predictionservice.controllers;
 import com.predict_app.predictionservice.dtos.PredictionRequestDto;
 import com.predict_app.predictionservice.dtos.PredictionResponseDto;
 import com.predict_app.predictionservice.services.PredictionService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,7 +21,7 @@ public class PredictionController {
     }
 
     @PostMapping
-    public ResponseEntity<PredictionResponseDto> createPrediction(@RequestBody PredictionRequestDto request) {
+    public ResponseEntity<PredictionResponseDto> createPrediction(@Valid @RequestBody PredictionRequestDto request) {
         return ResponseEntity.ok(predictionService.createPrediction(request));
     }
 

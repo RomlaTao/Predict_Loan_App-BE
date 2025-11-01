@@ -1,39 +1,22 @@
 package com.predict_app.predictionservice.configs;
 
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
-import org.springframework.amqp.rabbit.connection.ConnectionFactory;
-import org.springframework.amqp.support.converter.Jackson2JsonMessageConverter;
-import org.springframework.retry.support.RetryTemplate;
-import org.springframework.retry.policy.SimpleRetryPolicy;
-import org.springframework.retry.backoff.FixedBackOffPolicy;
-import org.springframework.amqp.core.AcknowledgeMode;
 
+/**
+ * ListenerConfig - Previously contained duplicate listener container factory
+ * 
+ * Note: Listener container factory is now configured in RabbitMQConfig
+ * with MANUAL acknowledgeMode to match the manual ack/nack handling in listeners.
+ * This configuration class is kept for future use or can be removed.
+ * 
+ * Why only one factory?
+ * - Spring Boot automatically uses bean named 'rabbitListenerContainerFactory' for @RabbitListener
+ * - Having multiple SimpleRabbitListenerContainerFactory beans causes ambiguity
+ * - All RabbitMQ-related configs should be in RabbitMQConfig for consistency
+ */
 @Configuration
 public class ListenerConfig {
-
-    @Bean
-    public SimpleRabbitListenerContainerFactory SimpleRabbitListenerContainerFactory(ConnectionFactory connFactory,
-                                                                              Jackson2JsonMessageConverter converter) {
-        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
-        factory.setConnectionFactory(connFactory);
-        factory.setMessageConverter(converter);
-        factory.setConcurrentConsumers(3);
-        factory.setMaxConcurrentConsumers(10);
-        factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
-
-        // Optional: retry advice
-        RetryTemplate retryTemplate = new RetryTemplate();
-        FixedBackOffPolicy backOff = new FixedBackOffPolicy();
-        backOff.setBackOffPeriod(2000); // 2s
-        retryTemplate.setBackOffPolicy(backOff);
-
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
-        retryPolicy.setMaxAttempts(5);
-        retryTemplate.setRetryPolicy(retryPolicy);
-
-        factory.setRetryTemplate(retryTemplate);
-        return factory;
-    }
+    // Configuration moved to RabbitMQConfig to avoid duplicate bean definitions
+    // Listener container factory is now defined as 'rabbitListenerContainerFactory' 
+    // in RabbitMQConfig with MANUAL acknowledgeMode
 }

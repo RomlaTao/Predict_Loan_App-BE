@@ -1,6 +1,7 @@
 package com.predict_app.predictionservice.repositories;
 
 import com.predict_app.predictionservice.entities.Prediction;
+import com.predict_app.predictionservice.enums.PredictionStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -11,5 +12,5 @@ import java.util.UUID;
 public interface PredictionRepository extends JpaRepository<Prediction, UUID> {
     List<Prediction> findByCustomerId(UUID customerId);
     List<Prediction> findByEmployeeId(UUID employeeId);
-    List<Prediction> findByStatus(String status);
+    List<Prediction> findByStatus(PredictionStatus status);
 }

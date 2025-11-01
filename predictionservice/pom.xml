@@ -135,6 +135,12 @@
 			<artifactId>spring-boot-starter-amqp</artifactId>
 		</dependency>
 
+		<!-- Actuator: cung cấp health checks, metrics, và monitoring endpoints -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<!-- Testing Starter: hỗ trợ JUnit5, Mockito, Spring Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

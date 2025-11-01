@@ -1,7 +1,7 @@
 # Prediction Service
 
 ## Mô tả
-Prediction Service là service để hứng kết quả dự đoán từ ML Model và quản lý prediction history. Service này kết nối với API_Model để lấy kết quả dự đoán khoản vay cá nhân.
+Prediction Service là service để hứng kết quả dự đoán từ ML Model và quản lý prediction history. Service này kết nối với ML Model Service để lấy kết quả dự đoán khoản vay cá nhân.
 
 ## Cấu hình
 
@@ -20,8 +20,8 @@ SPRING_DATASOURCE_USERNAME=predictionservice
 SPRING_DATASOURCE_PASSWORD=predictionservice
 SPRING_JPA_HIBERNATE_DDL_AUTO=update
 EUREKA_SERVER_URL=http://localhost:8761/eureka/
-API_MODEL_URL=http://localhost:5000
-API_MODEL_TIMEOUT=30000
+ML_MODEL_SERVICE_URL=http://localhost:8009
+ML_MODEL_SERVICE_TIMEOUT=30000
 ```
 
 ## API Endpoints
@@ -32,18 +32,7 @@ curl -X POST http://localhost:8008/api/predictions \
   -H "Content-Type: application/json" \
   -d '{
     "customerId": "customer-uuid",
-    "employeeId": "employee-uuid",
-    "age": 25,
-    "experience": 2,
-    "income": 50.0,
-    "family": 3,
-    "ccAvg": 2.5,
-    "education": 1,
-    "mortgage": 0.0,
-    "securitiesAccount": false,
-    "cdAccount": false,
-    "online": true,
-    "creditCard": true
+    "employeeId": "employee-uuid"
   }'
 ```
 
@@ -80,18 +69,7 @@ curl -X POST http://localhost:8008/api/predictions \
   -H "Content-Type: application/json" \
   -d '{
     "customerId": "123e4567-e89b-12d3-a456-426614174000",
-    "employeeId": "123e4567-e89b-12d3-a456-426614174001",
-    "age": 30,
-    "experience": 5,
-    "income": 75.0,
-    "family": 2,
-    "ccAvg": 4.2,
-    "education": 2,
-    "mortgage": 150.0,
-    "securitiesAccount": true,
-    "cdAccount": true,
-    "online": true,
-    "creditCard": true
+    "employeeId": "123e4567-e89b-12d3-a456-426614174001"
   }'
 ```
 
@@ -184,9 +162,9 @@ mvn spring-boot:run
 
 Ứng dụng sẽ chạy trên port 8008 và đăng ký với Eureka Server.
 
-## Kết nối với API_Model
+## Kết nối với ML Model Service
 
-Prediction Service sẽ gọi API_Model tại `http://localhost:5000/predict` với payload:
+Prediction Service sẽ gọi ML Model Service tại `http://localhost:8009/predict` với payload:
 
 ```json
 {

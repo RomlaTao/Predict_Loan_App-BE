@@ -5,6 +5,8 @@ import com.predict_app.predictionservice.dtos.events.PredictionRequestedEventDto
 import com.predict_app.predictionservice.dtos.events.ModelPredictRequestedEventDto;
 import com.predict_app.predictionservice.dtos.events.PredictionCompletedEventDto;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class PredictionEventPublisherImpl implements PredictionEventPublisher {
+
+    private static final Logger logger = LoggerFactory.getLogger(PredictionEventPublisherImpl.class);
 
     @Value("${rabbitmq.exchange.customer-profile-requested}")
     private String customerProfileRequestedExchangeName;
@@ -49,27 +53,68 @@ public class PredictionEventPublisherImpl implements PredictionEventPublisher {
 
     @Override
     public void publishCustomerProfileRequestedEvent(PredictionRequestedEventDto predictionRequestedEventDto) {
+        String predictionId = predictionRequestedEventDto.getPredictionId() != null 
+            ? predictionRequestedEventDto.getPredictionId().toString() 
+            : "null";
+        String customerId = predictionRequestedEventDto.getCustomerId() != null 
+            ? predictionRequestedEventDto.getCustomerId().toString() 
+            : "null";
+        
+        logger.info("📤 [PREDICTION→CUSTOMER] Publishing CustomerProfileRequestedEvent - PredictionId: {}, CustomerId: {}", 
+            predictionId, customerId);
+        logger.debug("📤 [PREDICTION→CUSTOMER] Exchange: {}, RoutingKey: {}, EmployeeId: {}, RequestedAt: {}", 
+            customerProfileRequestedExchangeName, customerProfileRequestedRoutingKey, 
+            predictionRequestedEventDto.getEmployeeId(), predictionRequestedEventDto.getRequestedAt());
 
-        PredictionRequestedEventDto requestEventDto = PredictionRequestedEventDto.builder()
-            .predictionId(predictionRequestedEventDto.getPredictionId())
-            .customerId(predictionRequestedEventDto.getCustomerId())
-            .employeeId(predictionRequestedEventDto.getEmployeeId())
-            .requestedAt(predictionRequestedEventDto.getRequestedAt())
-            .build();
+        try {
+            PredictionRequestedEventDto requestEventDto = PredictionRequestedEventDto.builder()
+                .predictionId(predictionRequestedEventDto.getPredictionId())
+                .customerId(predictionRequestedEventDto.getCustomerId())
+                .employeeId(predictionRequestedEventDto.getEmployeeId())
+                .requestedAt(predictionRequestedEventDto.getRequestedAt())
+                .build();
 
-        rabbitTemplate.convertAndSend(customerProfileRequestedExchangeName, customerProfileRequestedRoutingKey, requestEventDto);
+            rabbitTemplate.convertAndSend(customerProfileRequestedExchangeName, customerProfileRequestedRoutingKey, requestEventDto);
+            
+            logger.info("✅ [PREDICTION→CUSTOMER] Successfully published CustomerProfileRequestedEvent - PredictionId: {}, CustomerId: {}", 
+                predictionId, customerId);
+        } catch (Exception e) {
+            logger.error("❌ [PREDICTION→CUSTOMER] Failed to publish CustomerProfileRequestedEvent - PredictionId: {}, CustomerId: {}, Error: {}", 
+                predictionId, customerId, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override
     public void publishModelPredictRequestedEvent(ModelPredictRequestedEventDto modelPredictRequestedEventDto) {
+        String predictionId = modelPredictRequestedEventDto.getPredictionId() != null 
+            ? modelPredictRequestedEventDto.getPredictionId().toString() 
+            : "null";
+        String customerId = modelPredictRequestedEventDto.getCustomerId() != null 
+            ? modelPredictRequestedEventDto.getCustomerId().toString() 
+            : "null";
         
-        ModelPredictRequestedEventDto requestEventDto = ModelPredictRequestedEventDto.builder()
-            .predictionId(modelPredictRequestedEventDto.getPredictionId())
-            .customerId(modelPredictRequestedEventDto.getCustomerId())
-            .input(modelPredictRequestedEventDto.getInput())
-            .build();
+        logger.info("📤 [PREDICTION→ML_MODEL] Publishing ModelPredictRequestedEvent - PredictionId: {}, CustomerId: {}", 
+            predictionId, customerId);
+        logger.debug("📤 [PREDICTION→ML_MODEL] Exchange: {}, RoutingKey: {}", 
+            modelPredictRequestedExchangeName, modelPredictRequestedRoutingKey);
 
-        rabbitTemplate.convertAndSend(modelPredictRequestedExchangeName, modelPredictRequestedRoutingKey, requestEventDto);
+        try {
+            ModelPredictRequestedEventDto requestEventDto = ModelPredictRequestedEventDto.builder()
+                .predictionId(modelPredictRequestedEventDto.getPredictionId())
+                .customerId(modelPredictRequestedEventDto.getCustomerId())
+                .input(modelPredictRequestedEventDto.getInput())
+                .build();
+
+            rabbitTemplate.convertAndSend(modelPredictRequestedExchangeName, modelPredictRequestedRoutingKey, requestEventDto);
+            
+            logger.info("✅ [PREDICTION→ML_MODEL] Successfully published ModelPredictRequestedEvent - PredictionId: {}, CustomerId: {}", 
+                predictionId, customerId);
+        } catch (Exception e) {
+            logger.error("❌ [PREDICTION→ML_MODEL] Failed to publish ModelPredictRequestedEvent - PredictionId: {}, CustomerId: {}, Error: {}", 
+                predictionId, customerId, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override

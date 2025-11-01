@@ -21,14 +21,14 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing-key.customer-profile-requested}")
     private String customerProfileRequestedRoutingKey;
 
-    @Value("${rabbitmq.exchange.customer-profile-response}")
-    private String customerProfileResponseExchangeName;
+    @Value("${rabbitmq.exchange.customer-profile-enriched}")
+    private String customerProfileEnrichedExchangeName;
     
-    @Value("${rabbitmq.queue.customer-profile-response}")
-    private String customerProfileResponseQueueName;
+    @Value("${rabbitmq.queue.customer-profile-enriched}")
+    private String customerProfileEnrichedQueueName;
 
-    @Value("${rabbitmq.routing-key.customer-profile-response}")
-    private String customerProfileResponseRoutingKey;
+    @Value("${rabbitmq.routing-key.customer-profile-enriched}")
+    private String customerProfileEnrichedRoutingKey;
 
     @Value("${rabbitmq.exchange.model-predict-requested}")
     private String modelPredictRequestedExchangeName;
@@ -69,25 +69,25 @@ public class RabbitMQConfig {
                 .with(customerProfileRequestedRoutingKey);
     }
 
-    // Exchange Customer Profile Response
+    // Exchange Customer Profile Enriched
     @Bean
-    public TopicExchange customerProfileResponseExchange() {
-        return new TopicExchange(customerProfileResponseExchangeName);
+    public TopicExchange customerProfileEnrichedExchange() {
+        return new TopicExchange(customerProfileEnrichedExchangeName);
     }
 
-    // Queue Customer Profile Response
+    // Queue Customer Profile Enriched
     @Bean
-    public Queue customerProfileResponseQueue() {
-        return QueueBuilder.durable(customerProfileResponseQueueName).build();
+    public Queue customerProfileEnrichedQueue() {
+        return QueueBuilder.durable(customerProfileEnrichedQueueName).build();
     }
 
     // Bindings
     @Bean
-    public Binding customerProfileResponseBinding() {
+    public Binding customerProfileEnrichedBinding() {
         return BindingBuilder
-                .bind(customerProfileResponseQueue())
-                .to(customerProfileResponseExchange())
-                .with(customerProfileResponseRoutingKey);
+                .bind(customerProfileEnrichedQueue())
+                .to(customerProfileEnrichedExchange())
+                .with(customerProfileEnrichedRoutingKey);
     }
 
     // Exchange Model Predict Requested
@@ -147,12 +147,16 @@ public class RabbitMQConfig {
     }
 
     // Listener Container Factory
+    // Note: Using MANUAL acknowledgeMode because we handle ack/nack manually in listeners
     @Bean
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
             ConnectionFactory connectionFactory) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMessageConverter(messageConverter());
+        factory.setAcknowledgeMode(org.springframework.amqp.core.AcknowledgeMode.MANUAL);  // Manual ack/nack
+        factory.setConcurrentConsumers(3);
+        factory.setMaxConcurrentConsumers(10);
         return factory;
     }
 }

@@ -34,14 +34,8 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Override
     public PredictionResponseDto createPrediction(PredictionRequestDto request) {
-
-        // Validate request
-        if (request.getCustomerId() == null) {
-            throw new RuntimeException("Customer ID is required");
-        }
-        if (request.getEmployeeId() == null) {
-            throw new RuntimeException("Employee ID is required");
-        }
+        // Validation is handled by @Valid annotation in controller
+        // Only business logic validation needed here
 
         // Generate prediction ID
         UUID predictionId = UUID.randomUUID();
@@ -130,15 +124,25 @@ public class PredictionServiceImpl implements PredictionService {
         predictionRepository.save(prediction);
     }
 
+    /**
+     * Maps Prediction entity to PredictionResponseDto
+     * Handles null values safely for fields that may be null when status is PENDING
+     * 
+     * @param prediction The prediction entity to map
+     * @return PredictionResponseDto with null-safe values
+     */
     private PredictionResponseDto mapToResponseDto(Prediction prediction) {
         return PredictionResponseDto.builder()
             .predictionId(prediction.getPredictionId())
             .customerId(prediction.getCustomerId())
             .employeeId(prediction.getEmployeeId())
             .status(prediction.getStatus())
+            // Null-safe: predictionResult is null when status is PENDING
             .predictionResult(prediction.getPredictionResult())
+            // Null-safe: confidence is null when status is PENDING
             .confidence(prediction.getConfidence())
             .createdAt(prediction.getCreatedAt())
+            // Null-safe: completedAt is null when status is PENDING
             .completedAt(prediction.getCompletedAt())
             .build();
     }
