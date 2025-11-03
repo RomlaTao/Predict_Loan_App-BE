@@ -10,6 +10,8 @@ import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Service;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 @Service
@@ -17,6 +19,8 @@ public class ModelListenerImpl implements ModelListener {
 
     @Autowired
     private final PredictionService predictionService;
+
+    private static final Logger logger = LoggerFactory.getLogger(ModelListenerImpl.class);
 
     public ModelListenerImpl(PredictionService predictionService) {
         this.predictionService = predictionService;
@@ -28,21 +32,59 @@ public class ModelListenerImpl implements ModelListener {
                                           Channel channel,
                                           @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
         try {
+            long startTime = System.currentTimeMillis();
+
+            String predictionId = event != null && event.getPredictionId() != null
+                    ? event.getPredictionId().toString() : "null";
+
+            logger.info("📥 [PREDICTION] Received ModelPredictCompletedEvent - PredictionId: {}, DeliveryTag: {}",
+                    predictionId, deliveryTag);
+
+            if (event == null) {
+                throw new RuntimeException("Event payload is null");
+            }
             if (event.getPredictionId() == null) {
                 throw new RuntimeException("Prediction ID is required");
             }
 
-            predictionService.setPredictionResult(event.getPredictionId(), event.getResult().getLabel(), event.getResult().getProbability());
+            if (event.getResult() == null) {
+                throw new RuntimeException("Prediction result is required");
+            }
 
-            // Acknowledge thành công
-            channel.basicAck(deliveryTag, false);
+            String label = event.getResult().getLabel();
+            Double probability = event.getResult().getProbability();
+
+            logger.debug("🔎 [PREDICTION] Updating prediction result - PredictionId: {}, Label: {}, Probability: {}",
+                    predictionId, label, probability);
+
+            predictionService.setPredictionResult(event.getPredictionId(), label, probability);
+
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            if (channel != null && channel.isOpen()) {
+                channel.basicAck(deliveryTag, false);
+                logger.info("✅ [PREDICTION] Successfully processed ModelPredictCompletedEvent - PredictionId: {}, ProcessingTime: {}ms, DeliveryTag: {}",
+                        predictionId, processingTime, deliveryTag);
+            } else {
+                logger.warn("⚠️ [PREDICTION] Channel is not open when acknowledging - PredictionId: {}, DeliveryTag: {}",
+                        predictionId, deliveryTag);
+            }
             
         } catch (Exception e) {
             try {
-                // Reject và không requeue
-                channel.basicNack(deliveryTag, false, false);
+                String predictionId = (event != null && event.getPredictionId() != null)
+                        ? event.getPredictionId().toString() : "null";
+                logger.error("❌ [PREDICTION] Failed to process ModelPredictCompletedEvent - PredictionId: {}, DeliveryTag: {}, Error: {}",
+                        predictionId, deliveryTag, e.getMessage(), e);
+
+                if (channel != null && channel.isOpen()) {
+                    // Reject và không requeue
+                    channel.basicNack(deliveryTag, false, false);
+                } else {
+                    logger.warn("⚠️ [PREDICTION] Channel is not open when nacking - PredictionId: {}, DeliveryTag: {}",
+                            predictionId, deliveryTag);
+                }
             } catch (IOException ioException) {
-                // Log error
                 throw new RuntimeException("Failed to acknowledge message", ioException);
             }
         }
