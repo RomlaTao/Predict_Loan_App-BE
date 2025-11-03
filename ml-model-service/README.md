@@ -5,25 +5,29 @@ This is a refactored ML Model Service that provides loan prediction capabilities
 
 ## Architecture
 
-### Components
-- **FastAPI Application**: REST API for direct predictions
-- **RabbitMQ Consumer**: Asynchronous message processing
-- **ML Model Manager**: Handles model loading and predictions
-- **Configuration Management**: Environment-based settings
+### Modules & Responsibilities
+- **app/main.py**: Khởi tạo FastAPI, đăng ký Eureka, khởi động PredictionConsumer ở background, expose các endpoint `/health`, `/predict`, `/model/info`.
+- **app/config/settings.py**: Quản lý cấu hình (Pydantic Settings), map environment variables (RabbitMQ, Eureka, model path, …).
+- **app/models/ml_model.py**: Quản lý model/scaler (load, preprocess, predict). Lưu ý tên feature khớp lúc fit: `"Securities Account"`, `"CD Account"` (có dấu cách).
+- **app/models/schemas.py**: Định nghĩa schema Pydantic cho event-driven (ModelPredictRequestedEvent, ModelPredictCompletedEvent) và REST.
+- **app/services/prediction_service.py**: Business logic dự đoán (giao diện cao hơn quanh ml_model).
+- **app/services/rabbitmq_service.py**: Kết nối RabbitMQ, khai báo exchange/queue/binding, publish sự kiện `model.predict.completed` (serialize datetime ISO-8601 với ký tự 'T').
+- **app/services/eureka_service.py**: Đăng ký/hủy đăng ký Eureka (service discovery).
+- **app/consumers/prediction_consumer.py**: Consumer nhận `model.predict.requested`, chuyển đổi input → feature, suy luận, publish kết quả.
+- **app/utils/logger.py**: Cấu hình log (console + file), structured logging.
+- **app/exceptions/**: Các exception tuỳ biến.
 
-### Features
-- ✅ FastAPI REST API
-- ✅ RabbitMQ Integration
-- ✅ Structured Logging
-- ✅ Data Validation
-- ✅ Error Handling
-- ✅ Docker Support
-- ✅ Health Checks
+### Key Capabilities
+- ✅ REST API qua FastAPI
+- ✅ Event-driven qua RabbitMQ (topic exchange)
+- ✅ Eureka service discovery
+- ✅ Structured logging, trace end-to-end
+- ✅ Health checks & Dockerized
 
 ## Project Structure
 
 ```
-predictionmodel/
+ml-model-service/
 ├── app/
 │   ├── __init__.py
 │   ├── main.py                 # FastAPI application
@@ -36,8 +40,9 @@ predictionmodel/
 │   │   └── schemas.py          # Pydantic schemas
 │   ├── services/
 │   │   ├── __init__.py
-│   │   ├── prediction_service.py
-│   │   └── rabbitmq_service.py
+│   │   ├── prediction_service.py   # Business logic for prediction
+│   │   ├── eureka_service.py       # Eureka registration/deregistration
+│   │   └── rabbitmq_service.py     # RabbitMQ connection & publishing
 │   ├── consumers/
 │   │   ├── __init__.py
 │   │   └── prediction_consumer.py
@@ -48,7 +53,7 @@ predictionmodel/
 │   └── exceptions/
 │       ├── __init__.py
 │       └── custom_exceptions.py
-├── consumer.py                 # RabbitMQ consumer runner
+├── consumer.py                 # Legacy runner (consumer is now started from app/main.py)
 ├── requirements.txt
 ├── Dockerfile
 ├── docker-compose.yml
@@ -70,9 +75,9 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-3. **Run RabbitMQ and Redis:**
+3. **Run RabbitMQ (và Redis nếu cần):**
 ```bash
-docker-compose up rabbitmq redis -d
+docker-compose up rabbitmq -d
 ```
 
 4. **Start the API:**
@@ -80,10 +85,7 @@ docker-compose up rabbitmq redis -d
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8009 --reload
 ```
 
-5. **Start the consumer (in another terminal):**
-```bash
-python consumer.py
-```
+5. **Consumer**: Được khởi động tự động (background thread) từ `app/main.py` khi API start.
 
 ### Docker Deployment
 
@@ -99,7 +101,7 @@ docker-compose up --build
 GET /health
 ```
 
-### Direct Prediction
+### Direct Prediction (debug/local)
 ```http
 POST /predict
 Content-Type: application/json
@@ -124,47 +126,80 @@ Content-Type: application/json
 GET /model/info
 ```
 
-## RabbitMQ Integration
+## RabbitMQ Integration (Event-Driven)
 
-### Message Flow
-1. **Request**: Prediction request sent to `ml.prediction.request` queue
-2. **Processing**: Consumer processes the request using ML model
-3. **Response**: Result sent to `ml.prediction.response` queue
+### Exchanges, Queues, Routing Keys
+- Exchange: `model.predict.exchange` (topic)
+- Request Queue: `model.predict.requested` (rk: `model.predict.requested`)
+- Completed Queue: `model.predict.completed` (rk: `model.predict.completed`)
 
-### Message Format
+### Message Flow (end-to-end)
+1. PredictionService publish `ModelPredictRequestedEvent` → `model.predict.exchange` rk `model.predict.requested`.
+2. ML Model Service consumer nhận từ `model.predict.requested`, chạy suy luận, publish `ModelPredictCompletedEvent` → `model.predict.exchange` rk `model.predict.completed`.
+3. PredictionService lắng nghe `model.predict.completed`, cập nhật kết quả dự đoán.
+
+### Event Schemas
+- ModelPredictRequestedEvent
 ```json
 {
-    "correlation_id": "uuid",
-    "request_id": "uuid",
-    "request": {
-        "Age": 45,
-        "Experience": 20,
-        ...
-    },
-    "response": {
-        "prediction": true,
-        "confidence": 0.85,
-        "probabilities": {
-            "Không chấp nhận": 0.15,
-            "Chấp nhận": 0.85
-        },
-        "message": "Prediction completed successfully",
-        "timestamp": "2024-01-01T00:00:00"
-    },
-    "timestamp": "2024-01-01T00:00:00",
-    "status": "COMPLETED"
+  "predictionId": "uuid",
+  "customerId": "uuid",
+  "input": {
+    "age": 45,
+    "experience": 20,
+    "income": 74.0,
+    "family": 2,
+    "education": 2,
+    "mortgage": 56.0,
+    "securitiesAccount": false,
+    "cdAccount": false,
+    "online": true,
+    "creditCard": false,
+    "ccAvg": 23.0
+  }
+}
+```
+
+- ModelPredictCompletedEvent (datetime ISO-8601 có ký tự 'T')
+```json
+{
+  "predictionId": "uuid",
+  "customerId": "uuid",
+  "result": {
+    "label": "approve",
+    "probability": 0.85,
+    "modelVersion": "v1",
+    "inferenceTimeMs": 12
+  },
+  "predictedAt": "2025-11-03T12:25:52.142559"
 }
 ```
 
 ## Configuration
 
 ### Environment Variables
-- `RABBITMQ_HOST`: RabbitMQ host (default: localhost)
-- `RABBITMQ_PORT`: RabbitMQ port (default: 5672)
-- `RABBITMQ_USERNAME`: RabbitMQ username (default: guest)
-- `RABBITMQ_PASSWORD`: RabbitMQ password (default: guest)
-- `MODEL_PATH`: Path to ML model file (default: knn_model.joblib)
-- `SCALER_PATH`: Path to scaler file (default: scaler.joblib)
+- RabbitMQ
+  - `RABBITMQ_HOST` (default: localhost)
+  - `RABBITMQ_PORT` (default: 5672)
+  - `RABBITMQ_USERNAME` (default: guest)
+  - `RABBITMQ_PASSWORD` (default: guest)
+  - `RABBITMQ_VIRTUAL_HOST` (default: /)
+- Event Names (đã đồng bộ với PredictionService; có thể override qua env)
+  - `MODEL_PREDICT_REQUESTED_EXCHANGE` (default: model.predict.exchange)
+  - `MODEL_PREDICT_REQUESTED_QUEUE` (default: model.predict.requested)
+  - `MODEL_PREDICT_REQUESTED_ROUTING_KEY` (default: model.predict.requested)
+  - `MODEL_PREDICT_COMPLETED_EXCHANGE` (default: model.predict.exchange)
+  - `MODEL_PREDICT_COMPLETED_QUEUE` (default: model.predict.completed)
+  - `MODEL_PREDICT_COMPLETED_ROUTING_KEY` (default: model.predict.completed)
+- Model files
+  - `MODEL_PATH` (default: models/knn_model.joblib)
+  - `SCALER_PATH` (default: models/scaler.joblib)
+- Eureka
+  - `EUREKA_ENABLED` (default: true)
+  - `EUREKA_SERVER_URL` (default: http://localhost:8761/eureka/)
+  - `EUREKA_APP_NAME` (default: ml-model-service)
+  - `EUREKA_INSTANCE_HOST` (default: localhost)
+  - `EUREKA_INSTANCE_PORT` (default: 8009)
 
 ## Logging
 

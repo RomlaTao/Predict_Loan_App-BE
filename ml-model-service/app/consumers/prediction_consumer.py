@@ -31,10 +31,19 @@ class PredictionConsumer:
     def process_model_predict_requested(self, ch, method, properties, body):
         """Process ModelPredictRequestedEvent from Java services"""
         try:
+            payload_size = len(body) if body is not None else 0
             data = json.loads(body)
             event = ModelPredictRequestedEvent(**data)
 
-            logger.info(f"Received model-predict-requested for predictionId={event.predictionId}")
+            logger.info(
+                "📥 [ML_MODEL] Received ModelPredictRequestedEvent - PredictionId: {predictionId}, CustomerId: {customerId}, Exchange: {exchange}, RoutingKey: {routingKey}, DeliveryTag: {deliveryTag}, PayloadSize: {size} bytes",
+                predictionId=str(event.predictionId),
+                customerId=str(event.customerId),
+                exchange=getattr(method, 'exchange', ''),
+                routingKey=getattr(method, 'routing_key', ''),
+                deliveryTag=getattr(method, 'delivery_tag', None),
+                size=payload_size,
+            )
 
             # Transform input to model expected keys
             features = {
@@ -44,8 +53,8 @@ class PredictionConsumer:
                 'Family': event.input.family,
                 'Education': event.input.education,
                 'Mortgage': event.input.mortgage,
-                'Securities_Account': 1 if event.input.securitiesAccount else 0,
-                'CD_Account': 1 if event.input.cdAccount else 0,
+                'Securities Account': 1 if event.input.securitiesAccount else 0,
+                'CD Account': 1 if event.input.cdAccount else 0,
                 'Online': 1 if event.input.online else 0,
                 'CreditCard': 1 if event.input.creditCard else 0,
                 'ann_CCAvg': event.input.ccAvg,
@@ -73,13 +82,22 @@ class PredictionConsumer:
             self.rabbitmq_service.publish_model_predict_completed(completed.dict())
 
             ch.basic_ack(delivery_tag=method.delivery_tag)
-            logger.info("Processed model-predict-requested and published completed event")
+            logger.info(
+                "✅ [ML_MODEL→PREDICTION] Published ModelPredictCompletedEvent - PredictionId: {predictionId}, Label: {label}, Probability: {prob}, InferenceTimeMs: {ms}",
+                predictionId=str(event.predictionId),
+                label=label,
+                prob=confidence,
+                ms=inference_ms,
+            )
             
         except Exception as e:
-            logger.error(f"Error processing prediction request: {e}")
-            
-            # Reject message
-            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            logger.error(
+                "❌ [ML_MODEL] Error processing ModelPredictRequestedEvent - DeliveryTag: {deliveryTag}, Error: {error}",
+                deliveryTag=getattr(method, 'delivery_tag', None),
+                error=str(e),
+            )
+            # Reject message (no requeue)
+            ch.basic_nack(delivery_tag=getattr(method, 'delivery_tag', None), requeue=False)
     
     def start_consuming(self):
         """Start consuming messages"""

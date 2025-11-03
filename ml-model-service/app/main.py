@@ -7,6 +7,8 @@ from app.services.eureka_service import EurekaService
 from app.config.settings import settings
 from app.utils.logger import setup_logger
 from datetime import datetime
+from threading import Thread
+from app.consumers.prediction_consumer import PredictionConsumer
 
 # Setup logging
 setup_logger()
@@ -32,6 +34,7 @@ app.add_middleware(
 
 # Initialize prediction service
 prediction_service = PredictionService()
+prediction_consumer: PredictionConsumer | None = None
 
 @app.get("/")
 async def root():
@@ -75,11 +78,28 @@ async def model_info():
 async def startup_event():
     """Startup event - Register with Eureka Server"""
     await eureka_service.register()
+    # Start RabbitMQ consumer in background thread
+    global prediction_consumer
+    try:
+        prediction_consumer = PredictionConsumer()
+        Thread(target=prediction_consumer.start_consuming, daemon=True).start()
+        logger.info("🚀 [ML_MODEL] PredictionConsumer started in background thread")
+    except Exception as e:
+        logger.error(f"❌ [ML_MODEL] Failed to start PredictionConsumer: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Shutdown event - Deregister from Eureka Server"""
     await eureka_service.deregister()
+    # Stop consumer gracefully
+    try:
+        if prediction_consumer and prediction_consumer.rabbitmq_service and prediction_consumer.rabbitmq_service.channel:
+            prediction_consumer.rabbitmq_service.channel.stop_consuming()
+        if prediction_consumer and prediction_consumer.rabbitmq_service:
+            prediction_consumer.rabbitmq_service.close()
+        logger.info("🛑 [ML_MODEL] PredictionConsumer stopped")
+    except Exception as e:
+        logger.warning(f"⚠️ [ML_MODEL] Error during consumer shutdown: {e}")
 
 if __name__ == "__main__":
     import uvicorn

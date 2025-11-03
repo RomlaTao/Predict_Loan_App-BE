@@ -1,6 +1,7 @@
 import pika
 import json
 from typing import Dict, Any
+from datetime import datetime
 from loguru import logger
 from app.config.settings import settings
 
@@ -106,15 +107,30 @@ class RabbitMQService:
     def publish_model_predict_completed(self, message: Dict[str, Any]):
         """Publish ModelPredictCompletedEvent to completed exchange"""
         try:
+            # Ensure ISO-8601 with 'T' for datetime fields
+            def _default(o):
+                if isinstance(o, datetime):
+                    return o.isoformat()
+                return str(o)
+
+            body = json.dumps(message, default=_default)
+
             self.channel.basic_publish(
                 exchange=settings.model_predict_completed_exchange,
                 routing_key=settings.model_predict_completed_routing_key,
-                body=json.dumps(message, default=str),
+                body=body,
                 properties=pika.BasicProperties(
                     delivery_mode=2
                 )
             )
-            logger.info("Published model-predict-completed event")
+            try:
+                prediction_id = message.get("predictionId")
+            except Exception:
+                prediction_id = None
+            logger.info(
+                "📤 [ML_MODEL→PREDICTION] Published ModelPredictCompletedEvent - PredictionId: {predictionId}",
+                predictionId=str(prediction_id) if prediction_id else None,
+            )
         except Exception as e:
             logger.error(f"Error publishing model-predict-completed: {e}")
             raise

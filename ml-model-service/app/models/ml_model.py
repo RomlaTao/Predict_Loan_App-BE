@@ -30,7 +30,7 @@ class MLModelManager:
             # Create DataFrame with expected columns
             expected_columns = [
                 'Age', 'Experience', 'Income', 'Family', 'Education', 'Mortgage',
-                'Securities_Account', 'CD_Account', 'Online', 'CreditCard', 'ann_CCAvg'
+                'Securities Account', 'CD Account', 'Online', 'CreditCard', 'ann_CCAvg'
             ]
             
             # Map input data to DataFrame columns
