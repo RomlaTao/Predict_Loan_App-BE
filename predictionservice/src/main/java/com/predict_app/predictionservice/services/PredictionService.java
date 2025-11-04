@@ -14,5 +14,5 @@ public interface PredictionService {
     List<PredictionResponseDto> getAllPredictions();
     PredictionResponseDto updatePredictionStatus(UUID predictionId, String status);
     void setInputData(UUID predictionId, String inputData);
-    void setPredictionResult(UUID predictionId, String resultLabel, Double probability);
+    void setPredictionResult(UUID predictionId, Boolean resultLabel, Double probability);
 }

@@ -6,6 +6,8 @@ import com.predict_app.customerservice.entities.CustomerProfile;
 import com.predict_app.customerservice.repositories.CustomerProfileRepository;
 import com.predict_app.customerservice.dtos.events.CustomerEnrichedEventDto;
 import com.predict_app.customerservice.publishers.CustomerProfilePublisher;
+import com.predict_app.customerservice.dtos.events.PredictionCompletedEventDto;
+import com.predict_app.customerservice.services.CustomerProfileService;
 
 import com.rabbitmq.client.Channel;
 import org.slf4j.Logger;
@@ -29,9 +31,15 @@ public class PredictionListenerImpl implements PredictionListener {
     @Autowired
     private final CustomerProfilePublisher customerProfilePublisher;
 
-    public PredictionListenerImpl(CustomerProfileRepository customerProfileRepository, CustomerProfilePublisher customerProfilePublisher) {
+    @Autowired
+    private final CustomerProfileService customerProfileService;
+
+    public PredictionListenerImpl(CustomerProfileRepository customerProfileRepository, 
+                                CustomerProfilePublisher customerProfilePublisher, 
+                                CustomerProfileService customerProfileService) {
         this.customerProfileRepository = customerProfileRepository;
         this.customerProfilePublisher = customerProfilePublisher;
+        this.customerProfileService = customerProfileService;
     }
 
     @RabbitListener(queues = "${rabbitmq.queue.customer-profile-requested}")
@@ -125,6 +133,76 @@ public class PredictionListenerImpl implements PredictionListener {
         } catch (Exception e) {
             long processingTime = System.currentTimeMillis() - startTime;
             logger.error("❌ [CUSTOMER] Failed to process PredictionRequestedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}, Error: {}", 
+                predictionId, customerId, processingTime, deliveryTag, e.getMessage(), e);
+            try {
+                // Reject và không requeue
+                channel.basicNack(deliveryTag, false, false);
+                logger.warn("⚠️ [CUSTOMER] Message rejected and not requeued - DeliveryTag: {}", deliveryTag);
+            } catch (IOException ioException) {
+                logger.error("❌ [CUSTOMER] Failed to acknowledge/reject message - DeliveryTag: {}, Error: {}", 
+                    deliveryTag, ioException.getMessage(), ioException);
+                throw new RuntimeException("Failed to acknowledge message", ioException);
+            }
+        }
+    }
+
+    @RabbitListener(queues = "${rabbitmq.queue.prediction-completed}")
+    @Override
+    public void handlePredictionCompletedEvent(PredictionCompletedEventDto event,
+                                    Channel channel,
+                                    @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
+        long startTime = System.currentTimeMillis();
+        String predictionId = event.getPredictionId() != null ? event.getPredictionId().toString() : "null";
+        String customerId = event.getCustomerId() != null ? event.getCustomerId().toString() : "null";
+
+        logger.info("📥 [CUSTOMER] Received PredictionCompletedEvent - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
+            predictionId, customerId, deliveryTag);
+
+        try {
+            // Validation
+            if (event.getPredictionId() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Prediction ID is required - DeliveryTag: {}", deliveryTag);
+                throw new RuntimeException("Prediction ID is required");
+            }
+            if (event.getCustomerId() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Customer ID is required - PredictionId: {}, DeliveryTag: {}", 
+                    predictionId, deliveryTag);
+                throw new RuntimeException("Customer ID is required");
+            }
+            if (event.getResultLabel() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Result label is required - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
+                    predictionId, customerId, deliveryTag);
+                throw new RuntimeException("Result label is required");
+            }
+            if (event.getProbability() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Probability is required - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
+                    predictionId, customerId, deliveryTag);
+                throw new RuntimeException("Probability is required");
+            }
+            if (event.getCompletedAt() == null) {
+                logger.error("❌ [CUSTOMER] Validation failed: Completed at is required - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
+                    predictionId, customerId, deliveryTag);
+                throw new RuntimeException("Completed at is required");
+            }
+
+            logger.info("✅ [CUSTOMER] PredictionCompletedEvent received - PredictionId: {}, CustomerId: {}, ResultLabel: {}, Probability: {}, CompletedAt: {}", 
+                predictionId, customerId, event.getResultLabel(), event.getProbability(), event.getCompletedAt());
+
+            if (event.getResultLabel()) {
+                customerProfileService.approveCustomer(event.getCustomerId());
+            } else if (!event.getResultLabel()) {
+                customerProfileService.rejectCustomer(event.getCustomerId());
+            } else {
+                logger.error("❌ [CUSTOMER] Error in saving personal loan status - PredictionId: {}, CustomerId: {}, ResultLabel: {}, DeliveryTag: {}", 
+                    predictionId, customerId, event.getResultLabel(), deliveryTag);
+            }
+
+            logger.info("✅ [CUSTOMER] Customer profile updated - CustomerId: {}, ResultLabel: {}, Probability: {}, CompletedAt: {}", 
+                event.getCustomerId(), event.getResultLabel(), event.getProbability(), event.getCompletedAt());
+
+        } catch (Exception e) {
+            long processingTime = System.currentTimeMillis() - startTime;
+            logger.error("❌ [CUSTOMER] Failed to process PredictionCompletedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}, Error: {}", 
                 predictionId, customerId, processingTime, deliveryTag, e.getMessage(), e);
             try {
                 // Reject và không requeue

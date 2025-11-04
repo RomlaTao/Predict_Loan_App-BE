@@ -16,7 +16,6 @@ public class CustomerProfilePublisherImpl implements CustomerProfilePublisher {
 
     private static final Logger logger = LoggerFactory.getLogger(CustomerProfilePublisherImpl.class);
 
-
     @Value("${rabbitmq.exchange.customer-profile-enriched}")
     private String customerProfileEnrichedExchangeName;
 

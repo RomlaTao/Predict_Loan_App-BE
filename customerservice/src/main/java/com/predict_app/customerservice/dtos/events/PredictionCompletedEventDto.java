@@ -1,4 +1,4 @@
-package com.predict_app.predictionservice.dtos.events;
+package com.predict_app.customerservice.dtos.events;
 
 import lombok.*;
 import java.time.LocalDateTime;

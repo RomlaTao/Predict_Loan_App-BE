@@ -32,7 +32,7 @@ public class Prediction {
     private String inputData; // Dữ liệu đầu vào
 
     @Column(columnDefinition = "TEXT")
-    private String predictionResult; // Kết quả từ ML model
+    private Boolean predictionResult; // Kết quả từ ML model (true = approve, false = reject)
 
     @Column
     private Double confidence; // Độ tin cậy của prediction

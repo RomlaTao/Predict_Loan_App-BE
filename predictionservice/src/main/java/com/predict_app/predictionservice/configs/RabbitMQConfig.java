@@ -9,6 +9,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 @Configuration
 public class RabbitMQConfig {
 
@@ -47,6 +51,15 @@ public class RabbitMQConfig {
 
     @Value("${rabbitmq.routing-key.model-predict-completed}")
     private String modelPredictCompletedRoutingKey;
+
+    @Value("${rabbitmq.exchange.prediction-completed}")
+    private String predictionCompletedExchangeName;
+
+    @Value("${rabbitmq.queue.prediction-completed}")
+    private String predictionCompletedQueueName;
+
+    @Value("${rabbitmq.routing-key.prediction-completed}")
+    private String predictionCompletedRoutingKey;
 
     // Exchange Customer Profile Requested
     @Bean
@@ -132,17 +145,40 @@ public class RabbitMQConfig {
                 .with(modelPredictCompletedRoutingKey);
     }
     
+    // Exchange Prediction Completed
+    @Bean
+    public TopicExchange predictionCompletedExchange() {
+        return new TopicExchange(predictionCompletedExchangeName);
+    }
+    
+    // Queue Prediction Completed
+    @Bean
+    public Queue predictionCompletedQueue() {
+        return QueueBuilder.durable(predictionCompletedQueueName).build();
+    }
+    
+    // Bindings
+    @Bean
+    public Binding predictionCompletedBinding() {
+        return BindingBuilder
+                .bind(predictionCompletedQueue())
+                .to(predictionCompletedExchange())
+                .with(predictionCompletedRoutingKey);
+    }
     // Message Converter
     @Bean
-    public Jackson2JsonMessageConverter messageConverter() {
-        return new Jackson2JsonMessageConverter();
+    public Jackson2JsonMessageConverter messageConverter(ObjectMapper objectMapper) {
+        // Ensure Java Time (LocalDateTime, etc.) is supported
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        return new Jackson2JsonMessageConverter(objectMapper);
     }
 
     // RabbitTemplate
     @Bean
-    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
+    public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, Jackson2JsonMessageConverter messageConverter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
-        template.setMessageConverter(messageConverter());
+        template.setMessageConverter(messageConverter);
         return template;
     }
 
@@ -150,10 +186,11 @@ public class RabbitMQConfig {
     // Note: Using MANUAL acknowledgeMode because we handle ack/nack manually in listeners
     @Bean
     public SimpleRabbitListenerContainerFactory rabbitListenerContainerFactory(
-            ConnectionFactory connectionFactory) {
+            ConnectionFactory connectionFactory,
+            Jackson2JsonMessageConverter messageConverter) {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
-        factory.setMessageConverter(messageConverter());
+        factory.setMessageConverter(messageConverter);
         factory.setAcknowledgeMode(org.springframework.amqp.core.AcknowledgeMode.MANUAL);  // Manual ack/nack
         factory.setConcurrentConsumers(3);
         factory.setMaxConcurrentConsumers(10);

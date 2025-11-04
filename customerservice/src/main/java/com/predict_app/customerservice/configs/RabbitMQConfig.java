@@ -30,6 +30,15 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.routing-key.customer-profile-enriched}")
     private String customerProfileEnrichedRoutingKey;
 
+    @Value("${rabbitmq.exchange.prediction-completed}")
+    private String predictionCompletedExchangeName;
+
+    @Value("${rabbitmq.queue.prediction-completed}")
+    private String predictionCompletedQueueName;
+
+    @Value("${rabbitmq.routing-key.prediction-completed}")
+    private String predictionCompletedRoutingKey;
+
     // Exchange Customer Profile Requested
     @Bean
     public TopicExchange customerProfileRequestedExchange() {
@@ -70,6 +79,27 @@ public class RabbitMQConfig {
                 .bind(customerProfileEnrichedQueue())
                 .to(customerProfileEnrichedExchange())
                 .with(customerProfileEnrichedRoutingKey);
+    }
+
+    // Exchange Prediction Completed
+    @Bean
+    public TopicExchange predictionCompletedExchange() {
+        return new TopicExchange(predictionCompletedExchangeName);
+    }
+
+    // Queue Prediction Completed
+    @Bean
+    public Queue predictionCompletedQueue() {
+        return QueueBuilder.durable(predictionCompletedQueueName).build();
+    }
+
+    // Bindings
+    @Bean
+    public Binding predictionCompletedBinding() {
+        return BindingBuilder
+                .bind(predictionCompletedQueue())
+                .to(predictionCompletedExchange())
+                .with(predictionCompletedRoutingKey);
     }
     
     // Message Converter

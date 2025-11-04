@@ -44,6 +44,15 @@ public class PredictionEventPublisherImpl implements PredictionEventPublisher {
     @Value("${rabbitmq.routing-key.model-predict-completed}")
     private String modelPredictCompletedRoutingKey;
 
+    @Value("${rabbitmq.exchange.prediction-completed}")
+    private String predictionCompletedExchangeName;
+
+    @Value("${rabbitmq.queue.prediction-completed}")
+    private String predictionCompletedQueueName;
+
+    @Value("${rabbitmq.routing-key.prediction-completed}")
+    private String predictionCompletedRoutingKey;
+
     @Autowired
     private final RabbitTemplate rabbitTemplate;
 
@@ -119,5 +128,34 @@ public class PredictionEventPublisherImpl implements PredictionEventPublisher {
 
     @Override
     public void publishPredictionCompletedEvent(PredictionCompletedEventDto predictionCompletedEventDto) {
+        String predictionId = predictionCompletedEventDto.getPredictionId() != null 
+            ? predictionCompletedEventDto.getPredictionId().toString() 
+            : "null";
+        String customerId = predictionCompletedEventDto.getCustomerId() != null 
+            ? predictionCompletedEventDto.getCustomerId().toString() 
+            : "null";
+        
+        logger.info("📤 [PREDICTION→CUSTOMER] Publishing PredictionCompletedEvent - PredictionId: {}, CustomerId: {}", 
+            predictionId, customerId);
+
+        try {
+            PredictionCompletedEventDto completedEventDto = PredictionCompletedEventDto.builder()
+                .predictionId(predictionCompletedEventDto.getPredictionId())
+                .customerId(predictionCompletedEventDto.getCustomerId())
+                .resultLabel(predictionCompletedEventDto.getResultLabel())
+                .probability(predictionCompletedEventDto.getProbability())
+                .completedAt(predictionCompletedEventDto.getCompletedAt())
+                .build();
+
+            rabbitTemplate.convertAndSend(predictionCompletedExchangeName, predictionCompletedRoutingKey, completedEventDto);
+
+            logger.info("✅ [PREDICTION→CUSTOMER] Successfully published PredictionCompletedEvent - PredictionId: {}, CustomerId: {}", 
+                predictionId, customerId);
+        }
+        catch (Exception e) {
+            logger.error("❌ [PREDICTION→CUSTOMER] Failed to publish PredictionCompletedEvent - PredictionId: {}, CustomerId: {}, Error: {}", 
+                predictionId, customerId, e.getMessage(), e);
+            throw e;
+        }
     }
 }

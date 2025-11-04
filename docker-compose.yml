@@ -287,6 +287,9 @@ services:
       RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_ENRICHED: customer.profile.exchange
       RABBITMQ_QUEUE_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
       RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
+      RABBITMQ_EXCHANGE_PREDICTION_COMPLETED: prediction.exchange
+      RABBITMQ_QUEUE_PREDICTION_COMPLETED: prediction.completed
+      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED: prediction.completed
     networks:
       - predict-app-network
     restart: unless-stopped
@@ -335,6 +338,9 @@ services:
       RABBITMQ_EXCHANGE_MODEL_PREDICT_COMPLETED: model.predict.exchange
       RABBITMQ_QUEUE_MODEL_PREDICT_COMPLETED: model.predict.completed
       RABBITMQ_ROUTING_KEY_MODEL_PREDICT_COMPLETED: model.predict.completed
+      RABBITMQ_EXCHANGE_PREDICTION_COMPLETED: prediction.exchange
+      RABBITMQ_QUEUE_PREDICTION_COMPLETED: prediction.completed
+      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED: prediction.completed
     networks:
       - predict-app-network
     restart: unless-stopped

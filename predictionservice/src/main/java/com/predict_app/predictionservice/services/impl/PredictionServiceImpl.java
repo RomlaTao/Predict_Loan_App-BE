@@ -114,7 +114,7 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Transactional
     @Override
-    public void setPredictionResult(UUID predictionId, String resultLabel, Double probability) {
+    public void setPredictionResult(UUID predictionId, Boolean resultLabel, Double probability) {
         Prediction prediction = predictionRepository.findById(predictionId)
             .orElseThrow(() -> new RuntimeException("Prediction not found with id: " + predictionId));
         prediction.setPredictionResult(resultLabel);

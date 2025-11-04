@@ -64,14 +64,11 @@ class PredictionConsumer:
             prediction, confidence, probabilities = self.prediction_service.predict_from_dict(features)
             inference_ms = int((datetime.now() - start_ts).total_seconds() * 1000)
 
-            # Derive label string
-            label = 'approve' if prediction else 'reject'
-
             completed = ModelPredictCompletedEvent(
                 predictionId=event.predictionId,
                 customerId=event.customerId,
                 result=PredictionResultDto(
-                    label=label,
+                    label=bool(prediction),
                     probability=confidence,
                     modelVersion='v1',
                     inferenceTimeMs=inference_ms,
@@ -85,7 +82,7 @@ class PredictionConsumer:
             logger.info(
                 "✅ [ML_MODEL→PREDICTION] Published ModelPredictCompletedEvent - PredictionId: {predictionId}, Label: {label}, Probability: {prob}, InferenceTimeMs: {ms}",
                 predictionId=str(event.predictionId),
-                label=label,
+                label=bool(prediction),
                 prob=confidence,
                 ms=inference_ms,
             )

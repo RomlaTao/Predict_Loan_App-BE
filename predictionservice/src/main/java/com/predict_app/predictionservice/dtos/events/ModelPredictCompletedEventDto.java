@@ -22,7 +22,7 @@ public class ModelPredictCompletedEventDto {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class PredictionResultDto {
-        private String label;          // ví dụ: "approve" hoặc "reject"
+        private Boolean label;         // true = approve, false = reject
         private Double probability;    // xác suất mô hình
         private String modelVersion;   // phiên bản mô hình đang dùng
         private Long inferenceTimeMs;  // thời gian tính toán

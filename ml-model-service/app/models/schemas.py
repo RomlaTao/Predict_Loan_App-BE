@@ -57,7 +57,7 @@ class ModelPredictRequestedEvent(BaseModel):
     input: ModelInputDto
 
 class PredictionResultDto(BaseModel):
-    label: str
+    label: bool
     probability: float
     modelVersion: Optional[str] = None
     inferenceTimeMs: Optional[int] = None

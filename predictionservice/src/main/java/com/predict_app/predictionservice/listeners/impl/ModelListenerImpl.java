@@ -3,6 +3,8 @@ package com.predict_app.predictionservice.listeners.impl;
 import com.predict_app.predictionservice.dtos.events.ModelPredictCompletedEventDto;
 import com.predict_app.predictionservice.services.PredictionService;
 import com.predict_app.predictionservice.listeners.ModelListener;
+import com.predict_app.predictionservice.publishers.PredictionEventPublisher;
+import com.predict_app.predictionservice.dtos.events.PredictionCompletedEventDto;
 
 import com.rabbitmq.client.Channel;
 import org.springframework.amqp.support.AmqpHeaders;
@@ -20,10 +22,14 @@ public class ModelListenerImpl implements ModelListener {
     @Autowired
     private final PredictionService predictionService;
 
+    @Autowired
+    private final PredictionEventPublisher predictionEventPublisher;
+
     private static final Logger logger = LoggerFactory.getLogger(ModelListenerImpl.class);
 
-    public ModelListenerImpl(PredictionService predictionService) {
+    public ModelListenerImpl(PredictionService predictionService, PredictionEventPublisher predictionEventPublisher) {
         this.predictionService = predictionService;
+        this.predictionEventPublisher = predictionEventPublisher;
     }
 
     @RabbitListener(queues = "${rabbitmq.queue.model-predict-completed}")
@@ -51,11 +57,11 @@ public class ModelListenerImpl implements ModelListener {
                 throw new RuntimeException("Prediction result is required");
             }
 
-            String label = event.getResult().getLabel();
+            Boolean label = event.getResult().getLabel();
             Double probability = event.getResult().getProbability();
 
             logger.debug("🔎 [PREDICTION] Updating prediction result - PredictionId: {}, Label: {}, Probability: {}",
-                    predictionId, label, probability);
+                    predictionId, label.toString(), probability);
 
             predictionService.setPredictionResult(event.getPredictionId(), label, probability);
 
@@ -69,7 +75,19 @@ public class ModelListenerImpl implements ModelListener {
                 logger.warn("⚠️ [PREDICTION] Channel is not open when acknowledging - PredictionId: {}, DeliveryTag: {}",
                         predictionId, deliveryTag);
             }
+
+            PredictionCompletedEventDto predictionCompletedEventDto = PredictionCompletedEventDto.builder()
+                .predictionId(event.getPredictionId())
+                .customerId(event.getCustomerId())
+                .resultLabel(label)
+                .probability(probability)
+                .completedAt(event.getPredictedAt())
+                .build();
+
+            predictionEventPublisher.publishPredictionCompletedEvent(predictionCompletedEventDto);
             
+            logger.info("📤 [PREDICTION→CUSTOMER] Publishing PredictionCompletedEvent - PredictionId: {}, CustomerId: {}", 
+                predictionId, event.getCustomerId());
         } catch (Exception e) {
             try {
                 String predictionId = (event != null && event.getPredictionId() != null)
