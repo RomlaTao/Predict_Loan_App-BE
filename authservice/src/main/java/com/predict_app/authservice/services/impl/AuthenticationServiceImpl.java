@@ -145,7 +145,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public RefreshTokenResponseDto refreshToken(RefreshTokenRequestDto refreshTokenRequest) {
         String refreshToken = refreshTokenRequest.getRefreshToken();
-        String accessToken = refreshTokenRequest.getAccessToken();
 
         // Validate refresh token
         if (refreshToken == null || !tokenProvider.validateToken(refreshToken)) {
@@ -160,12 +159,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         // Extract email from refresh token and load user
         String email = tokenProvider.getUsernameFromToken(refreshToken);
         UserPrincipal userPrincipal = (UserPrincipal) customUserDetailsService.loadUserByUsername(email);
-
-        // Blacklist old access token if still valid
-        long accessTokenRemainingMillis = tokenProvider.getRemainingTime(accessToken);
-        if (accessTokenRemainingMillis > 0) {
-            redisTokenService.blacklistToken(accessToken, accessTokenRemainingMillis);
-        }
 
         // Blacklist old refresh token (token rotation)
         long refreshTokenRemainingMillis = tokenProvider.getRemainingTime(refreshToken);
