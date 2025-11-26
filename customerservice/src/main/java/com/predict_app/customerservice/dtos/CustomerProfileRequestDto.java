@@ -25,4 +25,5 @@ public class CustomerProfileRequestDto {
     private Boolean online;
     private Boolean creditCard;
     private Boolean personalLoan;
+    private UUID staffId;
 }

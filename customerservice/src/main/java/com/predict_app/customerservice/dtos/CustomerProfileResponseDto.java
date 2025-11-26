@@ -26,6 +26,7 @@ public class CustomerProfileResponseDto {
     private Boolean online;
     private Boolean creditCard;
     private Boolean personalLoan;
+    private UUID staffId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

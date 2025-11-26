@@ -60,6 +60,9 @@ public class CustomerProfile {
     @Column(name = "personal_loan")
     private Boolean personalLoan; // mục tiêu dự đoán: có chấp nhận khoản vay cá nhân hay không
 
+    @Column(name = "staff_id")
+    private UUID staffId;
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 

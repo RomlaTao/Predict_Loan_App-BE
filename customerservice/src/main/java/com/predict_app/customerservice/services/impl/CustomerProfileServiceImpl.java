@@ -24,6 +24,11 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
             request.setCustomerId(UUID.randomUUID());
         }
 
+        if (request.getStaffId() == null) {
+            throw new RuntimeException("Staff ID is required");
+        }
+
+        // Authorization is handled by @PreAuthorize in controller
         CustomerProfile customerProfile = mapToEntity(request);
         CustomerProfile savedProfile = customerProfileRepository.save(customerProfile);
         return mapToResponseDto(savedProfile);
@@ -31,6 +36,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
 
     @Override
     public List<CustomerProfileResponseDto> createCustomers(List<CustomerProfileRequestDto> requests) {
+        // Authorization is handled by @PreAuthorize in controller
         List<CustomerProfile> customerProfiles = requests.stream()
                 .map(request -> {
                     // Generate UUID if not provided
@@ -48,14 +54,23 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
     }
 
     @Override
-    public CustomerProfileResponseDto getProfileByCustomerId(UUID customerId) {
+    public CustomerProfileResponseDto getProfileByCustomerId(UUID customerId, UUID staffId, String role) {
+        // Authorization is handled by @PreAuthorize in controller
         CustomerProfile customerProfile = customerProfileRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer profile not found"));
+
+        if (role.equals("STAFF")) {
+            if (!customerProfile.getStaffId().equals(staffId)) {
+                throw new RuntimeException("You are not authorized to view this customer profile");
+            }
+        }
+
         return mapToResponseDto(customerProfile);
     }
 
     @Override
     public List<CustomerProfileResponseDto> getAllCustomers() {
+        // Authorization is handled by @PreAuthorize in controller
         List<CustomerProfile> profiles = customerProfileRepository.findAll();
         return profiles.stream()
                 .map(this::mapToResponseDto)
@@ -63,27 +78,33 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
     }
 
     @Override
-    public CustomerProfileResponseDto updateCustomer(UUID customerId, CustomerProfileRequestDto request) {
-        CustomerProfile existingProfile = customerProfileRepository.findById(customerId)
+    public CustomerProfileResponseDto updateCustomer(UUID customerId, CustomerProfileRequestDto request, UUID staffId) {
+        // Authorization is handled by @PreAuthorize in controller
+        CustomerProfile customerProfile = customerProfileRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer profile not found"));
 
-        // Update fields
-        existingProfile.setFullName(request.getFullName());
-        existingProfile.setEmail(request.getEmail());
-        existingProfile.setAge(request.getAge());
-        existingProfile.setExperience(request.getExperience());
-        existingProfile.setIncome(request.getIncome());
-        existingProfile.setFamily(request.getFamily());
-        existingProfile.setCcAvg(request.getCcAvg());
-        existingProfile.setEducation(request.getEducation());
-        existingProfile.setMortgage(request.getMortgage());
-        existingProfile.setSecuritiesAccount(request.getSecuritiesAccount());
-        existingProfile.setCdAccount(request.getCdAccount());
-        existingProfile.setOnline(request.getOnline());
-        existingProfile.setCreditCard(request.getCreditCard());
-        existingProfile.setPersonalLoan(request.getPersonalLoan());
+        // Additional check: STAFF can only update customers assigned to them
+        if (staffId != null && !staffId.equals(customerProfile.getStaffId())) {
+            throw new RuntimeException("You are not authorized to update this customer profile");
+        }
 
-        CustomerProfile updatedProfile = customerProfileRepository.save(existingProfile);
+        // Update fields
+        customerProfile.setFullName(request.getFullName());
+        customerProfile.setEmail(request.getEmail());
+        customerProfile.setAge(request.getAge());
+        customerProfile.setExperience(request.getExperience());
+        customerProfile.setIncome(request.getIncome());
+        customerProfile.setFamily(request.getFamily());
+        customerProfile.setCcAvg(request.getCcAvg());
+        customerProfile.setEducation(request.getEducation());
+        customerProfile.setMortgage(request.getMortgage());
+        customerProfile.setSecuritiesAccount(request.getSecuritiesAccount());
+        customerProfile.setCdAccount(request.getCdAccount());
+        customerProfile.setOnline(request.getOnline());
+        customerProfile.setCreditCard(request.getCreditCard());
+        customerProfile.setPersonalLoan(request.getPersonalLoan());
+        customerProfile.onUpdate();
+        CustomerProfile updatedProfile = customerProfileRepository.save(customerProfile);
         return mapToResponseDto(updatedProfile);
     }
 

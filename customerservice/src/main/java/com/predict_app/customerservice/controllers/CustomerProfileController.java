@@ -21,30 +21,59 @@ public class CustomerProfileController {
     }
 
     @PostMapping
-    public ResponseEntity<CustomerProfileResponseDto> createCustomer(@RequestBody CustomerProfileRequestDto request) {
-        return ResponseEntity.ok(customerProfileService.createCustomer(request));
+    public ResponseEntity<CustomerProfileResponseDto> createCustomer(
+            @RequestBody CustomerProfileRequestDto request,
+            @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_STAFF")) {
+            return ResponseEntity.ok(customerProfileService.createCustomer(request));
+        } else {
+            throw new RuntimeException("You are not authorized to create a customer");
+        }
     }
 
     @PostMapping("/bulk")
-    public ResponseEntity<List<CustomerProfileResponseDto>> createCustomers(@RequestBody List<CustomerProfileRequestDto> requests) {
-        return ResponseEntity.ok(customerProfileService.createCustomers(requests));
+    public ResponseEntity<List<CustomerProfileResponseDto>> createCustomers(
+            @RequestBody List<CustomerProfileRequestDto> requests,
+            @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_STAFF")) {
+            return ResponseEntity.ok(customerProfileService.createCustomers(requests));
+        } else {
+            throw new RuntimeException("You are not authorized to create customers");
+        }
     }
 
     @GetMapping("/{customerId}")
-    public ResponseEntity<CustomerProfileResponseDto> getCustomer(@PathVariable UUID customerId) {
-        return ResponseEntity.ok(customerProfileService.getProfileByCustomerId(customerId));
+    public ResponseEntity<CustomerProfileResponseDto> getCustomer(
+            @PathVariable UUID customerId, 
+            @RequestHeader("X-User-Id") UUID staffId,
+            @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_STAFF") || role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(customerProfileService.getProfileByCustomerId(customerId, staffId, role));
+        } else {
+            throw new RuntimeException("You are not authorized to get this customer");
+        }
     }
 
     @GetMapping
-    public ResponseEntity<List<CustomerProfileResponseDto>> getAllCustomers() {
-        return ResponseEntity.ok(customerProfileService.getAllCustomers());
+    public ResponseEntity<List<CustomerProfileResponseDto>> getAllCustomers(@RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_STAFF") || role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(customerProfileService.getAllCustomers());
+        } else {
+            throw new RuntimeException("You are not authorized to get all customers");
+        }
     }
 
     @PutMapping("/{customerId}")
     public ResponseEntity<CustomerProfileResponseDto> updateCustomer(
             @PathVariable UUID customerId,
-            @RequestBody CustomerProfileRequestDto request) {
-        return ResponseEntity.ok(customerProfileService.updateCustomer(customerId, request));
+            @RequestBody CustomerProfileRequestDto request,
+            @RequestHeader("X-User-Id") UUID staffId,
+            @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_STAFF")) {
+            return ResponseEntity.ok(customerProfileService.updateCustomer(customerId, request, staffId));
+        } else {
+            throw new RuntimeException("You are not authorized to update this customer");
+        }
     }
 
     // @DeleteMapping("/{customerId}")
@@ -54,17 +83,29 @@ public class CustomerProfileController {
     // }
 
     @GetMapping("/approved")
-    public ResponseEntity<List<CustomerProfileResponseDto>> getApprovedCustomers() {
-        return ResponseEntity.ok(customerProfileService.getApprovedCustomers());
+    public ResponseEntity<List<CustomerProfileResponseDto>> getApprovedCustomers(@RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(customerProfileService.getApprovedCustomers());
+        } else {
+            throw new RuntimeException("You are not authorized to get approved customers");
+        }
     }
 
     @GetMapping("/rejected")
-    public ResponseEntity<List<CustomerProfileResponseDto>> getRejectedCustomers() {
-        return ResponseEntity.ok(customerProfileService.getRejectedCustomers());
+    public ResponseEntity<List<CustomerProfileResponseDto>> getRejectedCustomers(@RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(customerProfileService.getRejectedCustomers());
+        } else {
+            throw new RuntimeException("You are not authorized to get rejected customers");
+        }
     }
 
     @GetMapping("/pending")
-    public ResponseEntity<List<CustomerProfileResponseDto>> getPendingCustomers() {
-        return ResponseEntity.ok(customerProfileService.getPendingCustomers());
+    public ResponseEntity<List<CustomerProfileResponseDto>> getPendingCustomers(@RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(customerProfileService.getPendingCustomers());
+        } else {
+            throw new RuntimeException("You are not authorized to get pending customers");
+        }
     }
 }

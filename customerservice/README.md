@@ -42,7 +42,8 @@ curl -X POST http://localhost:8007/api/customers \
     "cdAccount": false,
     "online": true,
     "creditCard": true,
-    "personalLoan": null
+    "personalLoan": null,
+    "staffId": "{staffId}"
   }'
 ```
 
@@ -65,7 +66,8 @@ curl -X POST http://localhost:8007/api/customers/bulk \
       "cdAccount": false,
       "online": true,
       "creditCard": true,
-      "personalLoan": null
+      "personalLoan": null,
+      "staffId": "{staffId}
     },
     {
       "fullName": "Tran Thi B",
@@ -81,7 +83,8 @@ curl -X POST http://localhost:8007/api/customers/bulk \
       "cdAccount": true,
       "online": true,
       "creditCard": true,
-      "personalLoan": null
+      "personalLoan": null,
+      "staffId": "{staffId}
     }
   ]'
 ```
@@ -120,7 +123,8 @@ curl -X PUT http://localhost:8007/api/customers/{customer-id} \
     "cdAccount": false,
     "online": true,
     "creditCard": true,
-    "personalLoan": true
+    "personalLoan": true,
+    "staffId": "{staffId}
   }'
 ```
 
@@ -174,112 +178,9 @@ curl -X POST http://localhost:8007/api/customers \
     "cdAccount": true,
     "online": true,
     "creditCard": true,
-    "personalLoan": null
+    "personalLoan": null,
+    "staffId": "{staffId}
   }'
-```
-
-**Expected Response:**
-```json
-{
-  "customerId": "uuid-generated",
-  "fullName": "Tran Thi B",
-  "email": "tranthib@example.com",
-  "age": 30,
-  "experience": 5,
-  "income": 75.0,
-  "family": 2,
-  "ccAvg": 4.2,
-  "education": 2,
-  "mortgage": 150.0,
-  "securitiesAccount": true,
-  "cdAccount": true,
-  "online": true,
-  "creditCard": true,
-  "personalLoan": null,
-  "createdAt": "2024-01-01T10:00:00",
-  "updatedAt": "2024-01-01T10:00:00"
-}
-```
-
-#### Mẫu payload tham khảo (dựa theo field)
-
-1) Mẫu trung bình
-```json
-{
-  "fullName": "Nguyen Van A",
-  "email": "nguyenvana@example.com",
-  "age": 45,
-  "experience": 20,
-  "income": 74.0,
-  "family": 2,
-  "ccAvg": 23.0,
-  "education": 2,
-  "mortgage": 56.0,
-  "securitiesAccount": false,
-  "cdAccount": false,
-  "online": true,
-  "creditCard": false,
-  "personalLoan": null
-}
-```
-
-2) Giá trị biên (tuổi nhỏ nhất, thu nhập thấp)
-```json
-{
-  "fullName": "Pham Thi D",
-  "email": "phamthid@example.com",
-  "age": 23,
-  "experience": 0,
-  "income": 8.0,
-  "family": 1,
-  "ccAvg": 0.0,
-  "education": 1,
-  "mortgage": 0.0,
-  "securitiesAccount": false,
-  "cdAccount": false,
-  "online": false,
-  "creditCard": false,
-  "personalLoan": null
-}
-```
-
-3) Thu nhập cao + có tài khoản (securities, CD)
-```json
-{
-  "fullName": "Le Van C",
-  "email": "levanc@example.com",
-  "age": 55,
-  "experience": 30,
-  "income": 98.0,
-  "family": 3,
-  "ccAvg": 30.0,
-  "education": 3,
-  "mortgage": 101.0,
-  "securitiesAccount": true,
-  "cdAccount": true,
-  "online": true,
-  "creditCard": true,
-  "personalLoan": true
-}
-```
-
-4) Thiếu trường không bắt buộc (bỏ personalLoan)
-```json
-{
-  "fullName": "Tran Thi B",
-  "email": "tranthib@example.com",
-  "age": 30,
-  "experience": 5,
-  "income": 75.0,
-  "family": 2,
-  "ccAvg": 4.2,
-  "education": 2,
-  "mortgage": 150.0,
-  "securitiesAccount": true,
-  "cdAccount": true,
-  "online": true,
-  "creditCard": true
-}
 ```
 
 ### Test Case 2: Lấy profile không tồn tại
