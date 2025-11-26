@@ -53,6 +53,10 @@ public class User {
     private boolean enabled = true;
 
     @Builder.Default
+    @Column(updatable = true)
+    private boolean firstLogin = true;
+
+    @Builder.Default
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 

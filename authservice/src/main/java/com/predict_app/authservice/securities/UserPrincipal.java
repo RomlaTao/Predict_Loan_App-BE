@@ -1,6 +1,7 @@
 package com.predict_app.authservice.securities;
 
 import com.predict_app.authservice.entities.User;
+import com.predict_app.authservice.enums.Role;
 import lombok.AllArgsConstructor;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,7 +18,7 @@ public class UserPrincipal implements UserDetails {
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
-        return List.of(new SimpleGrantedAuthority(user.getRole().name()));
+        return List.of(new SimpleGrantedAuthority("ROLE_" + user.getRole().toString()));
     }
 
     @Override
@@ -54,7 +55,7 @@ public class UserPrincipal implements UserDetails {
         return user.getId();
     }
 
-    public String getRole() {
-        return user.getRole().name();
+    public Role getRole() {
+        return user.getRole();
     }
 }

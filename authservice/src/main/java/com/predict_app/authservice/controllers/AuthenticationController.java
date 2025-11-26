@@ -5,7 +5,6 @@ import com.predict_app.authservice.dtos.RefreshTokenRequestDto;
 import com.predict_app.authservice.dtos.SignupRequestDto;
 import com.predict_app.authservice.dtos.LoginResponseDto;
 import com.predict_app.authservice.dtos.LogoutRequestDto;
-import com.predict_app.authservice.entities.User;
 import com.predict_app.authservice.services.AuthenticationService;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +13,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.servlet.http.HttpServletRequest;
 
 @RestController
@@ -27,10 +27,11 @@ public class AuthenticationController {
         this.authenticationService = authenticationService;
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/signup")
-    public String signup(@RequestBody SignupRequestDto signupRequest) {
-        User user = authenticationService.signup(signupRequest);
-        return "Signup successful for user: " + user.getEmail();
+    public ResponseEntity<Void> signup(@RequestBody SignupRequestDto signupRequest) {
+        authenticationService.signup(signupRequest);
+        return ResponseEntity.ok(null);
     }
 
     @PostMapping("/login")

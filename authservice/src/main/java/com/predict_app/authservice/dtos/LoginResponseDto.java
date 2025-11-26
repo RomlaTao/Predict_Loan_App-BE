@@ -1,5 +1,6 @@
 package com.predict_app.authservice.dtos;
 
+import com.predict_app.authservice.enums.Role;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -18,12 +19,5 @@ public class LoginResponseDto {
     private String refreshToken;
     private String tokenType = "Bearer";
     private String email;
-    private String role;
-
-    public LoginResponseDto(UUID userId, String accessToken, String refreshToken) {
-        this.userId = userId;
-        this.accessToken = accessToken;
-        this.refreshToken = refreshToken;
-        this.tokenType = "Bearer";
-    }
+    private Role role;
 }

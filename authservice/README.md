@@ -18,11 +18,14 @@ Trong Postman, tạo các variables sau:
 
 ---
 
-### 1. Signup - Đăng ký tài khoản mới
+### 0. Lấy access token của ADMIN (bắt buộc trước khi Signup)
+
+Endpoint `/api/auth/signup` được bảo vệ bởi `@PreAuthorize("hasRole('ADMIN')")`.  
+Trước khi tạo user mới, cần đăng nhập bằng tài khoản ADMIN để lấy access token.
 
 **Request:**
 - **Method:** `POST`
-- **URL:** `{{baseUrl}}/api/auth/signup`
+- **URL:** `{{baseUrl}}/api/auth/login`
 - **Headers:**
   ```
   Content-Type: application/json
@@ -30,27 +33,51 @@ Trong Postman, tạo các variables sau:
 - **Body (raw JSON):**
   ```json
   {
-    "email": "user@example.com",
+    "email": "admin@predictapp.com",
+    "password": "Admin@123"
+  }
+  ```
+
+Sau khi login thành công, lưu `accessToken` vào biến `adminAccessToken`.
+
+---
+
+### 1. Signup - Đăng ký tài khoản mới (chỉ ADMIN)
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/signup`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  Authorization: Bearer {{adminAccessToken}}
+  ```
+- **Body (raw JSON):**
+  ```json
+  {
+    "email": "staff@example.com",
     "password": "password123",
-    "passwordConfirm": "password123"
+    "passwordConfirm": "password123",
+    "role": "STAFF"
   }
   ```
 
 **Expected Response:**
 - **Status:** `200 OK`
-- **Body:**
-  ```
-  Signup successful for user: user@example.com
-  ```
+- **Body:** _empty_
 
-**Postman Script (để tự động lưu response):**
+> Lưu ý:
+> - `role` bắt buộc và chỉ nhận `STAFF` hoặc `RISK_ANALYST`.
+> - Không thể tạo ADMIN mới qua endpoint này.
+
+**Postman Script (kiểm tra quyền thành công):**
 ```javascript
 pm.test("Status code is 200", function () {
     pm.response.to.have.status(200);
 });
 
-pm.test("Response contains success message", function () {
-    pm.expect(pm.response.text()).to.include("Signup successful");
+pm.test("Signup returns empty body", function () {
+    pm.expect(pm.response.text()).to.be.empty;
 });
 ```
 
@@ -199,13 +226,15 @@ pm.test("Logout successful", function () {
 - **Headers:**
   ```
   Content-Type: application/json
+  Authorization: Bearer {{adminAccessToken}}
   ```
 - **Body (raw JSON):**
   ```json
   {
     "email": "user@example.com",
     "password": "password123",
-    "passwordConfirm": "password123"
+    "passwordConfirm": "password123",
+    "role": "STAFF"
   }
   ```
 
@@ -223,7 +252,7 @@ pm.test("Logout successful", function () {
 
 ---
 
-### 6. Signup - Mật khẩu không khớp
+### 6. Signup - Không có quyền (thiếu header Authorization hoặc không phải ADMIN)
 
 **Request:**
 - **Method:** `POST`
@@ -231,13 +260,40 @@ pm.test("Logout successful", function () {
 - **Headers:**
   ```
   Content-Type: application/json
+  }
+  ```
+
+**Expected Response:**
+- **Status:** `403 Forbidden`
+- **Body:**
+  ```json
+  {
+    "timestamp": "2024-01-01T10:00:00",
+    "status": 403,
+    "error": "Forbidden",
+    "message": "Access is denied"
+  }
+  ```
+
+---
+
+### 7. Signup - Mật khẩu không khớp
+
+**Request:**
+- **Method:** `POST`
+- **URL:** `{{baseUrl}}/api/auth/signup`
+- **Headers:**
+  ```
+  Content-Type: application/json
+  Authorization: Bearer {{adminAccessToken}}
   ```
 - **Body (raw JSON):**
   ```json
   {
     "email": "newuser@example.com",
     "password": "password123",
-    "passwordConfirm": "password456"
+    "passwordConfirm": "password456",
+    "role": "STAFF"
   }
   ```
 
@@ -255,7 +311,7 @@ pm.test("Logout successful", function () {
 
 ---
 
-### 7. Login - Sai mật khẩu
+### 8. Login - Sai mật khẩu
 
 **Request:**
 - **Method:** `POST`
@@ -286,7 +342,7 @@ pm.test("Logout successful", function () {
 
 ---
 
-### 8. Refresh Token - Refresh token không hợp lệ
+### 9. Refresh Token - Refresh token không hợp lệ
 
 **Request:**
 - **Method:** `POST`
@@ -317,7 +373,7 @@ pm.test("Logout successful", function () {
 
 ---
 
-### 9. Refresh Token - Refresh token đã bị blacklist
+### 10. Refresh Token - Refresh token đã bị blacklist
 
 **Request:**
 - **Method:** `POST`
@@ -349,7 +405,7 @@ pm.test("Logout successful", function () {
 
 ---
 
-### 10. Logout - Thiếu Authorization header
+### 11. Logout - Thiếu Authorization header
 
 **Request:**
 - **Method:** `POST`
@@ -379,7 +435,7 @@ pm.test("Logout successful", function () {
 
 ---
 
-### 11. Logout - Access token không hợp lệ
+### 12. Logout - Access token không hợp lệ
 
 **Request:**
 - **Method:** `POST`

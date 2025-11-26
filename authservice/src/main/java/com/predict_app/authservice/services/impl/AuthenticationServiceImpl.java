@@ -15,7 +15,11 @@ import com.predict_app.authservice.securities.JwtTokenProvider;
 import com.predict_app.authservice.securities.UserPrincipal;
 import com.predict_app.authservice.services.AuthenticationService;
 import com.predict_app.authservice.services.RedisTokenService;
+import com.predict_app.authservice.publisher.AuthenticationEventPublisher;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -23,6 +27,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 
 /**
  * Service implementation for authentication operations including:
@@ -31,8 +37,20 @@ import jakarta.servlet.http.HttpServletRequest;
  * - Token refresh
  * - User logout
  */
+@RequiredArgsConstructor
 @Service
 public class AuthenticationServiceImpl implements AuthenticationService {
+
+    @Value("${admin.default.email}")
+    private String adminDefaultEmail;
+
+    @Value("${admin.default.password}")
+    private String adminDefaultPassword;
+
+    @Value("${admin.default.role}")
+    private String adminDefaultRole;
+
+    private static final Logger logger = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -41,23 +59,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final CustomUserDetailsService customUserDetailsService;
     private final RedisTokenService redisTokenService;
     private final JwtConfig jwtConfig;
-
-    public AuthenticationServiceImpl(
-            UserRepository userRepository,
-            PasswordEncoder passwordEncoder,
-            AuthenticationManager authenticationManager,
-            JwtTokenProvider tokenProvider,
-            CustomUserDetailsService customUserDetailsService,
-            RedisTokenService redisTokenService,
-            JwtConfig jwtConfig) {
-        this.userRepository = userRepository;
-        this.passwordEncoder = passwordEncoder;
-        this.authenticationManager = authenticationManager;
-        this.tokenProvider = tokenProvider;
-        this.customUserDetailsService = customUserDetailsService;
-        this.redisTokenService = redisTokenService;
-        this.jwtConfig = jwtConfig;
-    }
+    private final AuthenticationEventPublisher authenticationEventPublisher;
 
     /**
      * Register a new user account
@@ -82,10 +84,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         User user = User.builder()
                 .email(signupRequest.getEmail())
                 .password(passwordEncoder.encode(signupRequest.getPassword()))
-                .role(Role.USER)
+                .role(Role.valueOf(signupRequest.getRole()))
+                .firstLogin(true)
                 .build();
 
-        return userRepository.save(user);
+        User savedUser = userRepository.save(user);
+        authenticationEventPublisher.publishUserCreatedEvent(savedUser);
+        return savedUser;
     }
 
     /**
@@ -130,7 +135,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 refreshToken,
                 "Bearer",
                 userPrincipal.getUsername(),
-                userPrincipal.getAuthorities().toString()
+                userPrincipal.getRole()
         );
     }
 
@@ -228,5 +233,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         redisTokenService.deleteToken("refresh:" + username);
 
         return "Logged out successfully";
+    }
+
+    @Override
+    public void setUserFirstLoginFalse(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        user.setFirstLogin(false);
+        userRepository.save(user);
     }
 }
