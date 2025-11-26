@@ -19,19 +19,19 @@ public class UserProfile {
     @Id
     private UUID userId;
 
-    @Column(nullable = false, length = 100)
+    @Column(length = 100)
     private String fullName;
 
     @Column(nullable = false, unique = true)
     private String email; // từ authservice
 
-    @Column(nullable = false, length = 50)
+    @Column(length = 50)
     private String department; // Credit, Risk, Operations, etc.
 
-    @Column(nullable = false, length = 50)
+    @Column(length = 50)
     private String position; // Manager, Analyst, Officer, etc.
 
-    @Column(nullable = false)
+    @Column
     private LocalDate hireDate;
 
     @Column(length = 20)
@@ -40,9 +40,13 @@ public class UserProfile {
     @Column(length = 200)
     private String address;
 
-    @Column(nullable = false)
+    @Column
     @Builder.Default
     private Boolean isActive = true;
+
+    @Column
+    @Builder.Default
+    private Boolean profileCompleted = false;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

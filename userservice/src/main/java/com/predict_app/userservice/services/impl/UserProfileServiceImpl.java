@@ -6,20 +6,21 @@ import com.predict_app.userservice.entities.UserProfile;
 import com.predict_app.userservice.exceptions.ResourceNotFoundException;
 import com.predict_app.userservice.repositories.UserProfileRepository;
 import com.predict_app.userservice.services.UserProfileService;
+import com.predict_app.userservice.dtos.events.UserCreatedEventDto;
 import org.springframework.stereotype.Service;
-
+import com.predict_app.userservice.publishers.UserProfileEventPublisher;
 import java.util.UUID;
 import java.util.List;
 import java.util.stream.Collectors;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 
+@RequiredArgsConstructor
 @Service
 public class UserProfileServiceImpl implements UserProfileService {
 
     private final UserProfileRepository userProfileRepository;
-
-    UserProfileServiceImpl(UserProfileRepository userProfileRepository){
-        this.userProfileRepository = userProfileRepository;
-    }
+    private final UserProfileEventPublisher userProfileEventPublisher;
 
     @Override
     public UserProfileResponseDto createProfile(UserProfileRequestDto request) {
@@ -37,6 +38,24 @@ public class UserProfileServiceImpl implements UserProfileService {
         return mapToResponseDto(profile);
     }
 
+    @Transactional
+    @Override
+    public UserProfileResponseDto createProfileDefault(UserCreatedEventDto userCreatedEvent) {
+        // Idempotency: safeguard against duplicate events
+        return userProfileRepository.findByUserId(userCreatedEvent.getUserId())
+                .map(this::mapToResponseDto)
+                .orElseGet(() -> {
+                    UserProfile profile = UserProfile.builder()
+                            .userId(userCreatedEvent.getUserId())
+                            .email(userCreatedEvent.getEmail())
+                            .profileCompleted(false)
+                            .build();
+                    profile.onCreate();
+                    userProfileRepository.save(profile);
+                    return mapToResponseDto(profile);
+                });
+    }
+
     @Override
     public UserProfileResponseDto getProfileByUserId(UUID userId) {
         UserProfile profile = userProfileRepository.findByUserId(userId)
@@ -45,7 +64,11 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     @Override
-    public UserProfileResponseDto updateProfile(UUID userId, UserProfileRequestDto request) {
+    public UserProfileResponseDto updateProfile(UUID userId, UserProfileRequestDto request, UUID currentUserId) {
+        if (!currentUserId.equals(userId)) {
+            throw new RuntimeException("You are not authorized to update this user profile");
+        }
+
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
 
@@ -54,6 +77,7 @@ public class UserProfileServiceImpl implements UserProfileService {
 
         profile.onUpdate();
         userProfileRepository.save(profile);
+        userProfileEventPublisher.publishUserProfileCompletedEvent(profile);
         return mapToResponseDto(profile);
     }
 

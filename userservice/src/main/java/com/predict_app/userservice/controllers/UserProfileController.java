@@ -20,34 +20,47 @@ public class UserProfileController {
     }
 
     @PostMapping
-    public ResponseEntity<UserProfileResponseDto> createProfile(@RequestBody UserProfileRequestDto request) {
-        return ResponseEntity.ok(userProfileService.createProfile(request));
+    public ResponseEntity<UserProfileResponseDto> createProfile(
+            @RequestBody UserProfileRequestDto request,
+            @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_ADMIN")) {
+            return ResponseEntity.ok(userProfileService.createProfile(request));
+        } else {
+            throw new RuntimeException("You are not authorized to create a profile");
+        }
     }
 
     // Route cụ thể '/me' phải đặt TRƯỚC route động '/{userId}' để tránh conflict
     @GetMapping("/me")
-    public ResponseEntity<UserProfileResponseDto> getCurrentProfile(
-            @RequestHeader("X-User-Id") UUID userId
-    ) {
+    public ResponseEntity<UserProfileResponseDto> getCurrentProfile(@RequestHeader("X-User-Id") UUID userId){
         return ResponseEntity.ok(userProfileService.getProfileByUserId(userId));
     }
 
     // Route GET '/' phải đặt trước route động để tránh conflict
     @GetMapping
-    public ResponseEntity<List<UserProfileResponseDto>> getAllProfiles() {
-        return ResponseEntity.ok(userProfileService.getAllProfiles());
+    public ResponseEntity<List<UserProfileResponseDto>> getAllProfiles(@RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_ADMIN")) {
+            return ResponseEntity.ok(userProfileService.getAllProfiles());
+        } else {
+            throw new RuntimeException("You are not authorized to get all profiles");
+        }
     }
 
-    // Route động '/{userId}' đặt sau các route cụ thể
+    // Route động '/{userId}' đặt sau các route cụ thể  
     @GetMapping("/{userId}")
-    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable UUID userId) {
-        return ResponseEntity.ok(userProfileService.getProfileByUserId(userId));
+    public ResponseEntity<UserProfileResponseDto> getProfile(@PathVariable UUID userId, @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_ADMIN")) {
+            return ResponseEntity.ok(userProfileService.getProfileByUserId(userId));
+        } else {
+            throw new RuntimeException("You are not authorized to get this profile");
+        }
     }
 
     @PutMapping("/{userId}")
         public ResponseEntity<UserProfileResponseDto> updateProfile(
             @PathVariable UUID userId,
-            @RequestBody UserProfileRequestDto request) {
-        return ResponseEntity.ok(userProfileService.updateProfile(userId, request));
+            @RequestBody UserProfileRequestDto request,
+            @RequestHeader("X-User-Id") UUID currentUserId) {
+        return ResponseEntity.ok(userProfileService.updateProfile(userId, request, currentUserId));
     }
 }
