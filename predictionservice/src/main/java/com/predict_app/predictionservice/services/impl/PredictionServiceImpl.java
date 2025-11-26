@@ -33,7 +33,7 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
-    public PredictionResponseDto createPrediction(PredictionRequestDto request) {
+    public PredictionResponseDto createPrediction(PredictionRequestDto request, UUID staffId) {
         // Validation is handled by @Valid annotation in controller
         // Only business logic validation needed here
 
@@ -43,7 +43,7 @@ public class PredictionServiceImpl implements PredictionService {
         Prediction prediction = Prediction.builder()
             .predictionId(predictionId)
             .customerId(request.getCustomerId())
-            .employeeId(request.getEmployeeId())
+            .employeeId(staffId)
             .status(PredictionStatus.PENDING)
             .build();
         
@@ -54,7 +54,7 @@ public class PredictionServiceImpl implements PredictionService {
         PredictionRequestedEventDto predictionRequestedEventDto = PredictionRequestedEventDto.builder()
             .predictionId(predictionId)
             .customerId(request.getCustomerId())
-            .employeeId(request.getEmployeeId())
+            .employeeId(staffId)
             .requestedAt(LocalDateTime.now())
             .build();
 
@@ -64,16 +64,21 @@ public class PredictionServiceImpl implements PredictionService {
     }
 
     @Override
-    public PredictionResponseDto getPredictionById(UUID predictionId) {
-        return predictionRepository.findById(predictionId)
-            .map(this::mapToResponseDto)
+    public PredictionResponseDto getPredictionById(UUID predictionId, UUID staffId, String role) {
+        Prediction prediction = predictionRepository.findById(predictionId)
             .orElseThrow(() -> new RuntimeException("Prediction not found with id: " + predictionId));
+        if (role.equals("STAFF")) {
+            if (!prediction.getEmployeeId().equals(staffId)) {
+                throw new RuntimeException("You are not authorized to get this prediction");
+            }
+        }
+        return mapToResponseDto(prediction);
     }
 
     @Override
     public List<PredictionResponseDto> getPredictionsByCustomerId(UUID customerId) {
-        return predictionRepository.findByCustomerId(customerId)
-            .stream()
+        List<Prediction> predictions = predictionRepository.findByCustomerId(customerId);
+        return predictions.stream()
             .map(this::mapToResponseDto)
             .collect(Collectors.toList());
     }
