@@ -71,13 +71,13 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
                 // Lấy thông tin user từ token
                 String username = jwtConfig.getUsernameFromToken(token);
                 String userId = jwtConfig.getUserIdFromToken(token);
-                java.util.List<String> roles = jwtConfig.getRolesFromToken(token);
+                String role = jwtConfig.getRolesFromToken(token).get(0);
 
                 // Thêm thông tin user vào request headers
                 ServerHttpRequest modifiedRequest = request.mutate()
                         .header("X-User-Id", userId)
                         .header("X-Username", username)
-                        .header("X-User-Roles", String.join(",", roles))
+                        .header("X-User-Role", role)
                         .header("X-Authenticated", "true")
                         .build();
 
@@ -107,7 +107,6 @@ public class JwtAuthenticationFilter extends AbstractGatewayFilterFactory<JwtAut
     private boolean isPublicPath(String path) {
         List<String> publicPaths = List.of(
                 "/api/auth/login",
-                "/api/auth/signup",
                 "/api/auth/refresh",
                 "/health",
                 "/actuator/health",
