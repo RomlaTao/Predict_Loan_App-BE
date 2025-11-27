@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface CustomerProfileService {
-    CustomerProfileResponseDto createCustomer(CustomerProfileRequestDto request);
+    CustomerProfileResponseDto createCustomer(CustomerProfileRequestDto request, UUID staffId);
     List<CustomerProfileResponseDto> createCustomers(List<CustomerProfileRequestDto> requests);
     CustomerProfileResponseDto updateCustomer(UUID customerId, CustomerProfileRequestDto request, UUID staffId);
     CustomerProfileResponseDto getProfileByCustomerId(UUID customerId, UUID staffId, String role);

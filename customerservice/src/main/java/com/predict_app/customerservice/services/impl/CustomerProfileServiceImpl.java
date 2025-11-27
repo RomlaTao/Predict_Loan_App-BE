@@ -6,34 +6,58 @@ import com.predict_app.customerservice.entities.CustomerProfile;
 import com.predict_app.customerservice.repositories.CustomerProfileRepository;
 import com.predict_app.customerservice.services.CustomerProfileService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CustomerProfileServiceImpl implements CustomerProfileService {
 
     private final CustomerProfileRepository customerProfileRepository;
 
+    @Transactional
     @Override
-    public CustomerProfileResponseDto createCustomer(CustomerProfileRequestDto request) {
+    public CustomerProfileResponseDto createCustomer(CustomerProfileRequestDto request, UUID staffId) {
+        log.info("Creating customer {} requested by staff {}", request.getEmail(), staffId);
         // Generate UUID if not provided
         if (request.getCustomerId() == null) {
             request.setCustomerId(UUID.randomUUID());
         }
 
-        if (request.getStaffId() == null) {
-            throw new RuntimeException("Staff ID is required");
+        if (staffId == null) {
+            throw new RuntimeException("Staff ID not null");
         }
 
         // Authorization is handled by @PreAuthorize in controller
-        CustomerProfile customerProfile = mapToEntity(request);
+        CustomerProfile customerProfile = CustomerProfile.builder()
+            .customerId(request.getCustomerId())
+            .fullName(request.getFullName())
+            .email(request.getEmail())
+            .age(request.getAge())
+            .experience(request.getExperience())
+            .income(request.getIncome())
+            .family(request.getFamily())
+            .ccAvg(request.getCcAvg())
+            .education(request.getEducation())
+            .mortgage(request.getMortgage())
+            .securitiesAccount(request.getSecuritiesAccount())
+            .cdAccount(request.getCdAccount())
+            .online(request.getOnline())
+            .creditCard(request.getCreditCard())
+            .personalLoan(request.getPersonalLoan())
+            .staffId(staffId)
+            .build();
+        customerProfile.onCreate();
         CustomerProfile savedProfile = customerProfileRepository.save(customerProfile);
         return mapToResponseDto(savedProfile);
     }
 
+    @Transactional
     @Override
     public List<CustomerProfileResponseDto> createCustomers(List<CustomerProfileRequestDto> requests) {
         // Authorization is handled by @PreAuthorize in controller
@@ -59,7 +83,9 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
         CustomerProfile customerProfile = customerProfileRepository.findById(customerId)
                 .orElseThrow(() -> new RuntimeException("Customer profile not found"));
 
-        if (role.equals("STAFF")) {
+        log.info("Getting customer profile {} for staff {} with role {}", customerId, staffId, role);
+
+        if (role.equals("ROLE_STAFF")) {
             if (!customerProfile.getStaffId().equals(staffId)) {
                 throw new RuntimeException("You are not authorized to view this customer profile");
             }
@@ -77,6 +103,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .toList();
     }
 
+    @Transactional
     @Override
     public CustomerProfileResponseDto updateCustomer(UUID customerId, CustomerProfileRequestDto request, UUID staffId) {
         // Authorization is handled by @PreAuthorize in controller
@@ -141,6 +168,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .toList();
     }
 
+    @Transactional
     @Override
     public CustomerProfileResponseDto approveCustomer(UUID customerId) {
         CustomerProfile customerProfile = customerProfileRepository.findById(customerId)
@@ -151,6 +179,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
         return mapToResponseDto(updatedProfile);
     }
 
+    @Transactional
     @Override
     public CustomerProfileResponseDto rejectCustomer(UUID customerId) {
         CustomerProfile customerProfile = customerProfileRepository.findById(customerId)
@@ -177,6 +206,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .cdAccount(request.getCdAccount())
                 .online(request.getOnline())
                 .creditCard(request.getCreditCard())
+                .staffId(request.getStaffId())
                 .personalLoan(request.getPersonalLoan())
                 .build();
     }
@@ -198,6 +228,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .online(customerProfile.getOnline())
                 .creditCard(customerProfile.getCreditCard())
                 .personalLoan(customerProfile.getPersonalLoan())
+                .staffId(customerProfile.getStaffId())
                 .createdAt(customerProfile.getCreatedAt())
                 .updatedAt(customerProfile.getUpdatedAt())
                 .build();

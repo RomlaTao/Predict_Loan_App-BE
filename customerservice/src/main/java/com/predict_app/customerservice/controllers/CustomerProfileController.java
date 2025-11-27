@@ -23,9 +23,10 @@ public class CustomerProfileController {
     @PostMapping
     public ResponseEntity<CustomerProfileResponseDto> createCustomer(
             @RequestBody CustomerProfileRequestDto request,
-            @RequestHeader("X-User-Role") String role) {
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-User-Id") UUID staffId) {
         if (role.equals("ROLE_STAFF")) {
-            return ResponseEntity.ok(customerProfileService.createCustomer(request));
+            return ResponseEntity.ok(customerProfileService.createCustomer(request, staffId));
         } else {
             throw new RuntimeException("You are not authorized to create a customer");
         }

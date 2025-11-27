@@ -67,7 +67,7 @@ public class PredictionServiceImpl implements PredictionService {
     public PredictionResponseDto getPredictionById(UUID predictionId, UUID staffId, String role) {
         Prediction prediction = predictionRepository.findById(predictionId)
             .orElseThrow(() -> new RuntimeException("Prediction not found with id: " + predictionId));
-        if (role.equals("STAFF")) {
+        if (role.equals("ROLE_STAFF")) {
             if (!prediction.getEmployeeId().equals(staffId)) {
                 throw new RuntimeException("You are not authorized to get this prediction");
             }

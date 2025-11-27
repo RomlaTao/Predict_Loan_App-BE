@@ -17,8 +17,6 @@ import com.predict_app.authservice.services.AuthenticationService;
 import com.predict_app.authservice.services.RedisTokenService;
 import com.predict_app.authservice.publisher.AuthenticationEventPublisher;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -49,8 +47,6 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
     @Value("${admin.default.role}")
     private String adminDefaultRole;
-
-    private static final Logger logger = LoggerFactory.getLogger(AuthenticationServiceImpl.class);
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;

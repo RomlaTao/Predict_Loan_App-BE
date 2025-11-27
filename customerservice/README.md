@@ -42,8 +42,7 @@ curl -X POST http://localhost:8007/api/customers \
     "cdAccount": false,
     "online": true,
     "creditCard": true,
-    "personalLoan": null,
-    "staffId": "{staffId}"
+    "personalLoan": null"
   }'
 ```
 
@@ -66,8 +65,7 @@ curl -X POST http://localhost:8007/api/customers/bulk \
       "cdAccount": false,
       "online": true,
       "creditCard": true,
-      "personalLoan": null,
-      "staffId": "{staffId}
+      "personalLoan": null
     },
     {
       "fullName": "Tran Thi B",
@@ -83,8 +81,7 @@ curl -X POST http://localhost:8007/api/customers/bulk \
       "cdAccount": true,
       "online": true,
       "creditCard": true,
-      "personalLoan": null,
-      "staffId": "{staffId}
+      "personalLoan": null
     }
   ]'
 ```
