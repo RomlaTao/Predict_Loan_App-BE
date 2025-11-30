@@ -66,7 +66,6 @@ public class PredictionController {
         }
     }
 
-
     @GetMapping("/employee/me")
     public ResponseEntity<List<PredictionResponseDto>> getCurrentEmployeePredictions(
         @RequestHeader("X-User-Id") UUID employeeId,

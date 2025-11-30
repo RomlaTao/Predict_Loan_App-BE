@@ -168,6 +168,23 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
                 .toList();
     }
 
+    @Override
+    public List<CustomerProfileResponseDto> getCustomersByStaffId(
+            UUID staffId, 
+            String role, 
+            UUID currentStaffId) {
+        if (role.equals("ROLE_STAFF")) {
+            if (!staffId.equals(currentStaffId)) {
+                throw new RuntimeException("You are not authorized to view this customers");
+            }
+        }
+
+        List<CustomerProfile> customers = customerProfileRepository.findByStaffId(staffId);
+        return customers.stream()
+                .map(this::mapToResponseDto)
+                .toList();
+    }
+
     @Transactional
     @Override
     public CustomerProfileResponseDto approveCustomer(UUID customerId) {

@@ -57,7 +57,7 @@ public class CustomerProfileController {
 
     @GetMapping
     public ResponseEntity<List<CustomerProfileResponseDto>> getAllCustomers(@RequestHeader("X-User-Role") String role) {
-        if (role.equals("ROLE_STAFF") || role.equals("ROLE_RISK_ANALYST")) {
+        if (role.equals("ROLE_RISK_ANALYST")) {
             return ResponseEntity.ok(customerProfileService.getAllCustomers());
         } else {
             throw new RuntimeException("You are not authorized to get all customers");
@@ -107,6 +107,18 @@ public class CustomerProfileController {
             return ResponseEntity.ok(customerProfileService.getPendingCustomers());
         } else {
             throw new RuntimeException("You are not authorized to get pending customers");
+        }
+    }
+
+    @GetMapping("/staff/{staffId}")
+    public ResponseEntity<List<CustomerProfileResponseDto>> getCustomersByStaffId(
+            @PathVariable UUID staffId,
+            @RequestHeader("X-User-Role") String role,
+            @RequestHeader("X-User-Id") UUID currentStaffId) {
+        if (role.equals("ROLE_STAFF") || role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(customerProfileService.getCustomersByStaffId(staffId, role, currentStaffId));
+        } else {
+            throw new RuntimeException("You are not authorized to get customers by staff id");
         }
     }
 }

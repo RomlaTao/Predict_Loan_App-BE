@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import java.util.Map;
+import java.util.function.BiConsumer;
+import java.time.LocalDate;
 
 @RequiredArgsConstructor
 @Service
@@ -64,21 +67,50 @@ public class UserProfileServiceImpl implements UserProfileService {
     }
 
     @Override
-    public UserProfileResponseDto updateProfile(UUID userId, UserProfileRequestDto request, UUID currentUserId) {
-        if (!currentUserId.equals(userId)) {
-            throw new RuntimeException("You are not authorized to update this user profile");
+    public UserProfileResponseDto updateProfile(UUID userId, UserProfileRequestDto request, UUID currentUserId, String role) {
+        validateUpdateAuthorization(role, currentUserId, userId);
+
+        if (role.equals("ROLE_RISK_ANALYST") || role.equals("ROLE_STAFF")) {
+            if (!currentUserId.equals(userId)) {
+                throw new RuntimeException("You are not authorized to update this user profile");
+            }
         }
 
         UserProfile profile = userProfileRepository.findByUserId(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
 
-        // Manual update Entity từ DTO
         updateEntityFromDto(profile, request);
-
         profile.onUpdate();
         userProfileRepository.save(profile);
         userProfileEventPublisher.publishUserProfileCompletedEvent(profile);
         return mapToResponseDto(profile);
+    }
+
+    @Override
+    public UserProfileResponseDto updateProfilePartially(UUID userId, Map<String, Object> updates, UUID currentUserId, String role) {
+        validateUpdateAuthorization(role, currentUserId, userId);
+        
+        UserProfile profile = userProfileRepository.findByUserId(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Profile not found for userId: " + userId));
+        
+        updates.forEach((key, value) -> {
+            BiConsumer<UserProfile, Object> updater = FIELD_UPDATERS.get(key);
+            if (updater == null) {
+                throw new IllegalArgumentException("Invalid field: " + key);
+            }
+            updater.accept(profile, value);
+        });
+        
+        profile.onUpdate();
+        userProfileRepository.save(profile);
+        userProfileEventPublisher.publishUserProfileCompletedEvent(profile);
+        return mapToResponseDto(profile);
+    }
+
+    private void validateUpdateAuthorization(String role, UUID currentUserId, UUID targetUserId) {
+        if ("ROLE_STAFF".equals(role) && !currentUserId.equals(targetUserId)) {
+            throw new RuntimeException("You are not authorized to update this user profile");
+        }
     }
 
     @Override
@@ -90,6 +122,17 @@ public class UserProfileServiceImpl implements UserProfileService {
 
     }
 
+    // Map field names to their corresponding updaters
+    private static final Map<String, BiConsumer<UserProfile, Object>> FIELD_UPDATERS = Map.of(
+        "fullName", (profile, value) -> profile.setFullName((String) value),
+        "email", (profile, value) -> profile.setEmail((String) value),
+        "department", (profile, value) -> profile.setDepartment((String) value),
+        "position", (profile, value) -> profile.setPosition((String) value),
+        "hireDate", (profile, value) -> profile.setHireDate((LocalDate) value),
+        "phoneNumber", (profile, value) -> profile.setPhoneNumber((String) value),
+        "address", (profile, value) -> profile.setAddress((String) value),
+        "isActive", (profile, value) -> profile.setIsActive((Boolean) value)
+    );
 
     private UserProfile mapToEntity(UserProfileRequestDto request) {
         return UserProfile.builder()

@@ -15,6 +15,7 @@ public interface CustomerProfileService {
     List<CustomerProfileResponseDto> getApprovedCustomers();
     List<CustomerProfileResponseDto> getRejectedCustomers();
     List<CustomerProfileResponseDto> getPendingCustomers();
+    List<CustomerProfileResponseDto> getCustomersByStaffId(UUID staffId, String role, UUID currentStaffId);
     CustomerProfileResponseDto approveCustomer(UUID customerId);
     CustomerProfileResponseDto rejectCustomer(UUID customerId);
 }

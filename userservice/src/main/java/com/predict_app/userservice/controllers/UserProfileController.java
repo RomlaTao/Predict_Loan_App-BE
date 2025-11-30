@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -60,7 +61,21 @@ public class UserProfileController {
         public ResponseEntity<UserProfileResponseDto> updateProfile(
             @PathVariable UUID userId,
             @RequestBody UserProfileRequestDto request,
-            @RequestHeader("X-User-Id") UUID currentUserId) {
-        return ResponseEntity.ok(userProfileService.updateProfile(userId, request, currentUserId));
+            @RequestHeader("X-User-Id") UUID currentUserId,
+            @RequestHeader("X-User-Role") String role) {
+        return ResponseEntity.ok(userProfileService.updateProfile(userId, request, currentUserId, role));
+    }
+
+    @PatchMapping("/{userId}")
+    public ResponseEntity<UserProfileResponseDto> updateProfilePartially(
+            @PathVariable UUID userId,
+            @RequestBody Map<String, Object> updates,
+            @RequestHeader("X-User-Id") UUID currentUserId,
+            @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_ADMIN") || role.equals("ROLE_STAFF") || role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(userProfileService.updateProfilePartially(userId, updates, currentUserId, role));
+        } else {
+            throw new RuntimeException("You are not authorized to update this profile");
+        }
     }
 }
