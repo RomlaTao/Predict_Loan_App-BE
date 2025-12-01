@@ -95,23 +95,28 @@ services:
       retries: 5
       start_period: 30s
 
-  # # MySQL Database for AnalyticsService
-  # mysql-analytics:
-  #   image: mysql:8.0
-  #   container_name: mysql-analytics
-  #   ports:
-  #     - "3311:3306"
-  #   environment:
-  #     MYSQL_ROOT_PASSWORD: root
-  #     MYSQL_DATABASE: analysticservice
-  #     MYSQL_USER: analysticservice
-  #     MYSQL_PASSWORD: analysticservice
-  #   volumes:
-  #     - mysql_analytics_data:/var/lib/mysql
-  #   networks:
-  #     - predict-app-network
-  #   restart: unless-stopped
-  #   command: --default-authentication-plugin=mysql_native_password
+  # MySQL Database for AnalyticsService
+  mysql-analystic:
+    image: mysql:8.0
+    container_name: mysql-analystic
+    ports:
+      - "3311:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: analysticservice
+      MYSQL_USER: ${ANALYSTIC_DB_USERNAME}
+      MYSQL_PASSWORD: ${ANALYSTIC_DB_PASSWORD}
+    volumes:
+      - mysql_analystic_data:/var/lib/mysql
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$$MYSQL_ROOT_PASSWORD || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   # RabbitMQ Message Broker
   rabbitmq:
@@ -314,8 +319,8 @@ services:
       RABBITMQ_QUEUE_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
       RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
       RABBITMQ_EXCHANGE_PREDICTION_COMPLETED: prediction.exchange
-      RABBITMQ_QUEUE_PREDICTION_COMPLETED: prediction.completed
-      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED: prediction.completed
+      RABBITMQ_QUEUE_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
+      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
     networks:
       - predict-app-network
     restart: unless-stopped
@@ -353,22 +358,29 @@ services:
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
       RABBITMQ_HOST: rabbitmq
       RABBITMQ_PORT: 5672
+      
       # RabbitMQ Queue Configuration for PredictionService
       RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_REQUESTED: customer.profile.exchange
       RABBITMQ_QUEUE_CUSTOMER_PROFILE_REQUESTED: customer.profile.request
       RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_REQUESTED: customer.profile.requested
+
       RABBITMQ_EXCHANGE_CUSTOMER_PROFILE_ENRICHED: customer.profile.exchange
       RABBITMQ_QUEUE_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
       RABBITMQ_ROUTING_KEY_CUSTOMER_PROFILE_ENRICHED: customer.profile.enriched
+
       RABBITMQ_EXCHANGE_MODEL_PREDICT_REQUESTED: model.predict.exchange
       RABBITMQ_QUEUE_MODEL_PREDICT_REQUESTED: model.predict.requested
       RABBITMQ_ROUTING_KEY_MODEL_PREDICT_REQUESTED: model.predict.requested
+
       RABBITMQ_EXCHANGE_MODEL_PREDICT_COMPLETED: model.predict.exchange
       RABBITMQ_QUEUE_MODEL_PREDICT_COMPLETED: model.predict.completed
       RABBITMQ_ROUTING_KEY_MODEL_PREDICT_COMPLETED: model.predict.completed
+
       RABBITMQ_EXCHANGE_PREDICTION_COMPLETED: prediction.exchange
-      RABBITMQ_QUEUE_PREDICTION_COMPLETED: prediction.completed
-      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED: prediction.completed
+      RABBITMQ_QUEUE_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
+      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
+      RABBITMQ_QUEUE_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
+      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
     networks:
       - predict-app-network
     restart: unless-stopped
@@ -439,14 +451,53 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
-      
+
+  # AnalysticService (Analytics Management)
+  analysticservice:
+    build:
+      context: ./analysticservice
+      dockerfile: Dockerfile
+    container_name: analysticservice
+    ports:
+      - "8010:8010"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: ${ANALYSTIC_DB_URL}
+      SPRING_DATASOURCE_USERNAME: ${ANALYSTIC_DB_USERNAME}
+      SPRING_DATASOURCE_PASSWORD: ${ANALYSTIC_DB_PASSWORD}
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_PORT: 5672
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+
+      RABBITMQ_EXCHANGE_PREDICTION_COMPLETED: prediction.exchange
+      RABBITMQ_QUEUE_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
+      RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      mysql-analystic:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
 volumes:
   # Database volumes
   mysql_customer_data:
   mysql_prediction_data:
   mysql_user_data:
   mysql_auth_data:
-  # mysql_analytics_data:
+  mysql_analystic_data:
   
   # Message broker volume
   rabbitmq_data:
