@@ -6,7 +6,7 @@ import com.predict_app.customerservice.entities.CustomerProfile;
 import com.predict_app.customerservice.repositories.CustomerProfileRepository;
 import com.predict_app.customerservice.dtos.events.CustomerEnrichedEventDto;
 import com.predict_app.customerservice.publishers.CustomerProfilePublisher;
-import com.predict_app.customerservice.dtos.events.PredictionCompletedEventDto;
+import com.predict_app.customerservice.dtos.events.PredictionCompletedCustomerEventDto;
 import com.predict_app.customerservice.services.CustomerProfileService;
 
 import com.rabbitmq.client.Channel;
@@ -146,9 +146,9 @@ public class PredictionListenerImpl implements PredictionListener {
         }
     }
 
-    @RabbitListener(queues = "${rabbitmq.queue.prediction-completed}")
+    @RabbitListener(queues = "${rabbitmq.queue.prediction-completed-customer}")
     @Override
-    public void handlePredictionCompletedEvent(PredictionCompletedEventDto event,
+    public void handlePredictionCompletedEvent(PredictionCompletedCustomerEventDto event,
                                     Channel channel,
                                     @Header(AmqpHeaders.DELIVERY_TAG) long deliveryTag) {
         long startTime = System.currentTimeMillis();
@@ -174,19 +174,9 @@ public class PredictionListenerImpl implements PredictionListener {
                     predictionId, customerId, deliveryTag);
                 throw new RuntimeException("Result label is required");
             }
-            if (event.getProbability() == null) {
-                logger.error("❌ [CUSTOMER] Validation failed: Probability is required - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
-                    predictionId, customerId, deliveryTag);
-                throw new RuntimeException("Probability is required");
-            }
-            if (event.getCompletedAt() == null) {
-                logger.error("❌ [CUSTOMER] Validation failed: Completed at is required - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
-                    predictionId, customerId, deliveryTag);
-                throw new RuntimeException("Completed at is required");
-            }
 
-            logger.info("✅ [CUSTOMER] PredictionCompletedEvent received - PredictionId: {}, CustomerId: {}, ResultLabel: {}, Probability: {}, CompletedAt: {}", 
-                predictionId, customerId, event.getResultLabel(), event.getProbability(), event.getCompletedAt());
+            logger.info("✅ [CUSTOMER] PredictionCompletedEvent received - PredictionId: {}, CustomerId: {}, ResultLabel: {}, CompletedAt: {}", 
+                predictionId, customerId, event.getResultLabel(), LocalDateTime.now());
 
             if (event.getResultLabel()) {
                 customerProfileService.approveCustomer(event.getCustomerId());
@@ -197,8 +187,8 @@ public class PredictionListenerImpl implements PredictionListener {
                     predictionId, customerId, event.getResultLabel(), deliveryTag);
             }
 
-            logger.info("✅ [CUSTOMER] Customer profile updated - CustomerId: {}, ResultLabel: {}, Probability: {}, CompletedAt: {}", 
-                event.getCustomerId(), event.getResultLabel(), event.getProbability(), event.getCompletedAt());
+            logger.info("✅ [CUSTOMER] Customer profile updated - CustomerId: {}, ResultLabel: {}, CompletedAt: {}", 
+                event.getCustomerId(), event.getResultLabel(), LocalDateTime.now());
 
         } catch (Exception e) {
             long processingTime = System.currentTimeMillis() - startTime;

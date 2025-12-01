@@ -33,10 +33,10 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.exchange.prediction-completed}")
     private String predictionCompletedExchangeName;
 
-    @Value("${rabbitmq.queue.prediction-completed}")
+    @Value("${rabbitmq.queue.prediction-completed-customer}")
     private String predictionCompletedQueueName;
 
-    @Value("${rabbitmq.routing-key.prediction-completed}")
+    @Value("${rabbitmq.routing-key.prediction-completed-customer}")
     private String predictionCompletedRoutingKey;
 
     // Exchange Customer Profile Requested

@@ -1,7 +1,6 @@
 package com.predict_app.customerservice.dtos.events;
 
 import lombok.*;
-import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Getter
@@ -9,10 +8,8 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class PredictionCompletedEventDto {
+public class PredictionCompletedCustomerEventDto {
     private UUID predictionId;
     private UUID customerId;
     private Boolean resultLabel;
-    private Double probability;
-    private LocalDateTime completedAt;
 }
