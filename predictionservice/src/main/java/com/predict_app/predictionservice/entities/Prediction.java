@@ -28,8 +28,12 @@ public class Prediction {
     @Column
     private PredictionStatus status;
 
-    @Column(columnDefinition = "TEXT")
-    private String inputData; // Dữ liệu đầu vào
+    /**
+     * Dữ liệu đầu vào của model ở dạng JSON.
+     * Lưu dưới dạng JSON trong MySQL để dễ parse lại cho mục đích analytics.
+     */
+    @Column(columnDefinition = "json")
+    private String inputData;
 
     @Column(columnDefinition = "TEXT")
     private Boolean predictionResult; // Kết quả từ ML model (true = approve, false = reject)

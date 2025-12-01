@@ -3,7 +3,8 @@ package com.predict_app.predictionservice.publishers.impl;
 import com.predict_app.predictionservice.publishers.PredictionEventPublisher;
 import com.predict_app.predictionservice.dtos.events.PredictionRequestedEventDto;
 import com.predict_app.predictionservice.dtos.events.ModelPredictRequestedEventDto;
-import com.predict_app.predictionservice.dtos.events.PredictionCompletedEventDto;
+import com.predict_app.predictionservice.dtos.events.PredictionCompletedCusomterEventDto;
+import com.predict_app.predictionservice.dtos.events.PredictionCompletedAnalysticEventDto;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,17 +21,11 @@ public class PredictionEventPublisherImpl implements PredictionEventPublisher {
     @Value("${rabbitmq.exchange.customer-profile-requested}")
     private String customerProfileRequestedExchangeName;
 
-    @Value("${rabbitmq.queue.customer-profile-requested}")
-    private String customerProfileRequestedQueueName;
-
     @Value("${rabbitmq.routing-key.customer-profile-requested}")
     private String customerProfileRequestedRoutingKey;
 
     @Value("${rabbitmq.exchange.model-predict-requested}")
     private String modelPredictRequestedExchangeName;
-
-    @Value("${rabbitmq.queue.model-predict-requested}")
-    private String modelPredictRequestedQueueName;
 
     @Value("${rabbitmq.routing-key.model-predict-requested}")
     private String modelPredictRequestedRoutingKey;
@@ -38,20 +33,17 @@ public class PredictionEventPublisherImpl implements PredictionEventPublisher {
     @Value("${rabbitmq.exchange.model-predict-completed}")
     private String modelPredictCompletedExchangeName;
 
-    @Value("${rabbitmq.queue.model-predict-completed}")
-    private String modelPredictCompletedQueueName;
-
     @Value("${rabbitmq.routing-key.model-predict-completed}")
     private String modelPredictCompletedRoutingKey;
 
     @Value("${rabbitmq.exchange.prediction-completed}")
     private String predictionCompletedExchangeName;
 
-    @Value("${rabbitmq.queue.prediction-completed}")
-    private String predictionCompletedQueueName;
+    @Value("${rabbitmq.routing-key.prediction-completed-customer}")
+    private String predictionCompletedCustomerRoutingKey;
 
-    @Value("${rabbitmq.routing-key.prediction-completed}")
-    private String predictionCompletedRoutingKey;
+    @Value("${rabbitmq.routing-key.prediction-completed-analytics}")
+    private String predictionCompletedAnalyticsRoutingKey;
 
     @Autowired
     private final RabbitTemplate rabbitTemplate;
@@ -127,7 +119,7 @@ public class PredictionEventPublisherImpl implements PredictionEventPublisher {
     }
 
     @Override
-    public void publishPredictionCompletedEvent(PredictionCompletedEventDto predictionCompletedEventDto) {
+    public void publishPredictionCompletedEvent(PredictionCompletedCusomterEventDto predictionCompletedEventDto) {
         String predictionId = predictionCompletedEventDto.getPredictionId() != null 
             ? predictionCompletedEventDto.getPredictionId().toString() 
             : "null";
@@ -139,21 +131,47 @@ public class PredictionEventPublisherImpl implements PredictionEventPublisher {
             predictionId, customerId);
 
         try {
-            PredictionCompletedEventDto completedEventDto = PredictionCompletedEventDto.builder()
+            PredictionCompletedCusomterEventDto completedEventDto = PredictionCompletedCusomterEventDto.builder()
                 .predictionId(predictionCompletedEventDto.getPredictionId())
                 .customerId(predictionCompletedEventDto.getCustomerId())
                 .resultLabel(predictionCompletedEventDto.getResultLabel())
-                .probability(predictionCompletedEventDto.getProbability())
-                .completedAt(predictionCompletedEventDto.getCompletedAt())
                 .build();
 
-            rabbitTemplate.convertAndSend(predictionCompletedExchangeName, predictionCompletedRoutingKey, completedEventDto);
+            rabbitTemplate.convertAndSend(predictionCompletedExchangeName, predictionCompletedCustomerRoutingKey, completedEventDto);
 
             logger.info("✅ [PREDICTION→CUSTOMER] Successfully published PredictionCompletedEvent - PredictionId: {}, CustomerId: {}", 
                 predictionId, customerId);
         }
         catch (Exception e) {
             logger.error("❌ [PREDICTION→CUSTOMER] Failed to publish PredictionCompletedEvent - PredictionId: {}, CustomerId: {}, Error: {}", 
+                predictionId, customerId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    @Override
+    public void publishPredictionCompletedAnalyticsEvent(PredictionCompletedAnalysticEventDto predictionCompletedEventDto) {
+        String predictionId = predictionCompletedEventDto.getPredictionId() != null
+            ? predictionCompletedEventDto.getPredictionId().toString()
+            : "null";
+        String customerId = predictionCompletedEventDto.getCustomerId() != null
+            ? predictionCompletedEventDto.getCustomerId().toString()
+            : "null";
+
+        logger.info("📤 [PREDICTION→ANALYTICS] Publishing PredictionCompletedAnalyticsEvent - PredictionId: {}, CustomerId: {}",
+            predictionId, customerId);
+
+        try {
+            rabbitTemplate.convertAndSend(
+                predictionCompletedExchangeName,
+                predictionCompletedAnalyticsRoutingKey,
+                predictionCompletedEventDto
+            );
+
+            logger.info("✅ [PREDICTION→ANALYTICS] Successfully published PredictionCompletedAnalyticsEvent - PredictionId: {}, CustomerId: {}",
+                predictionId, customerId);
+        } catch (Exception e) {
+            logger.error("❌ [PREDICTION→ANALYTICS] Failed to publish PredictionCompletedAnalyticsEvent - PredictionId: {}, CustomerId: {}, Error: {}",
                 predictionId, customerId, e.getMessage(), e);
             throw e;
         }

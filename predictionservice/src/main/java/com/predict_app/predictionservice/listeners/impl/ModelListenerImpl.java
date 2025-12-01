@@ -4,7 +4,8 @@ import com.predict_app.predictionservice.dtos.events.ModelPredictCompletedEventD
 import com.predict_app.predictionservice.services.PredictionService;
 import com.predict_app.predictionservice.listeners.ModelListener;
 import com.predict_app.predictionservice.publishers.PredictionEventPublisher;
-import com.predict_app.predictionservice.dtos.events.PredictionCompletedEventDto;
+import com.predict_app.predictionservice.dtos.events.PredictionCompletedCusomterEventDto;
+import com.predict_app.predictionservice.dtos.events.PredictionCompletedAnalysticEventDto;
 
 import com.rabbitmq.client.Channel;
 import org.springframework.amqp.support.AmqpHeaders;
@@ -76,17 +77,22 @@ public class ModelListenerImpl implements ModelListener {
                         predictionId, deliveryTag);
             }
 
-            PredictionCompletedEventDto predictionCompletedEventDto = PredictionCompletedEventDto.builder()
+            PredictionCompletedCusomterEventDto predictionCompletedEventDto = PredictionCompletedCusomterEventDto.builder()
                 .predictionId(event.getPredictionId())
                 .customerId(event.getCustomerId())
                 .resultLabel(label)
-                .probability(probability)
-                .completedAt(event.getPredictedAt())
                 .build();
 
             predictionEventPublisher.publishPredictionCompletedEvent(predictionCompletedEventDto);
+
+            // Build and publish analytics event for AnalysticService
+            PredictionCompletedAnalysticEventDto analyticsEventDto =
+                predictionService.buildAnalyticsEvent(event.getPredictionId());
+            predictionEventPublisher.publishPredictionCompletedAnalyticsEvent(analyticsEventDto);
             
-            logger.info("📤 [PREDICTION→CUSTOMER] Publishing PredictionCompletedEvent - PredictionId: {}, CustomerId: {}", 
+            logger.info("📤 [PREDICTION→CUSTOMER] PredictionCompletedEvent published - PredictionId: {}, CustomerId: {}", 
+                predictionId, event.getCustomerId());
+            logger.info("📤 [PREDICTION→ANALYTICS] PredictionCompletedAnalyticsEvent published - PredictionId: {}, CustomerId: {}", 
                 predictionId, event.getCustomerId());
         } catch (Exception e) {
             try {

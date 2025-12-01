@@ -3,12 +3,14 @@ package com.predict_app.predictionservice.controllers;
 import com.predict_app.predictionservice.dtos.PredictionRequestDto;
 import com.predict_app.predictionservice.dtos.PredictionResponseDto;
 import com.predict_app.predictionservice.services.PredictionService;
+
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
+import java.time.LocalDateTime;
 
 @RestController
 @RequestMapping("/api/predictions")
@@ -79,7 +81,7 @@ public class PredictionController {
 
     @GetMapping
     public ResponseEntity<List<PredictionResponseDto>> getAllPredictions(@RequestHeader("X-User-Role") String role) {
-        if (role.equals("ROLE_STAFF") || role.equals("ROLE_RISK_ANALYST")) {
+        if (role.equals("ROLE_RISK_ANALYST")) {
             return ResponseEntity.ok(predictionService.getAllPredictions());
         } else {
             throw new RuntimeException("You are not authorized to get all predictions");

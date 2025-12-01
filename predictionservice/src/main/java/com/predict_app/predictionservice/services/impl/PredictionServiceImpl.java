@@ -8,6 +8,9 @@ import com.predict_app.predictionservice.services.PredictionService;
 import com.predict_app.predictionservice.entities.Prediction;
 import com.predict_app.predictionservice.dtos.events.PredictionRequestedEventDto;
 import com.predict_app.predictionservice.publishers.PredictionEventPublisher;
+import com.predict_app.predictionservice.dtos.events.PredictionCompletedAnalysticEventDto;
+import com.predict_app.predictionservice.dtos.events.CustomerEnrichedEventDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -26,10 +29,17 @@ public class PredictionServiceImpl implements PredictionService {
 
     @Autowired
     private final PredictionEventPublisher predictionEventPublisher;
+
+    @Autowired
+    private final ObjectMapper objectMapper;
     
-    public PredictionServiceImpl(PredictionRepository predictionRepository, PredictionEventPublisher predictionEventPublisher) {
+    public PredictionServiceImpl(
+            PredictionRepository predictionRepository,
+            PredictionEventPublisher predictionEventPublisher,
+            ObjectMapper objectMapper) {
         this.predictionRepository = predictionRepository;
         this.predictionEventPublisher = predictionEventPublisher;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -127,6 +137,52 @@ public class PredictionServiceImpl implements PredictionService {
         prediction.setStatus(PredictionStatus.COMPLETED);
         prediction.setCompletedAt(LocalDateTime.now());
         predictionRepository.save(prediction);
+    }
+
+    @Override
+    public PredictionCompletedAnalysticEventDto buildAnalyticsEvent(UUID predictionId) {
+        Prediction prediction = predictionRepository.findById(predictionId)
+            .orElseThrow(() -> new RuntimeException("Prediction not found with id: " + predictionId));
+
+        // Parse JSON inputData (snapshot của CustomerDto)
+        CustomerEnrichedEventDto.CustomerDto snapshot = null;
+        if (prediction.getInputData() != null) {
+            try {
+                snapshot = objectMapper.readValue(
+                    prediction.getInputData(),
+                    CustomerEnrichedEventDto.CustomerDto.class
+                );
+            } catch (Exception e) {
+                throw new RuntimeException("Error parsing input data: " + e.getMessage(), e);
+            }
+        }
+
+        PredictionCompletedAnalysticEventDto.PredictionCompletedAnalysticEventDtoBuilder builder =
+            PredictionCompletedAnalysticEventDto.builder()
+                .predictionId(prediction.getPredictionId())
+                .customerId(prediction.getCustomerId())
+                .employeeId(prediction.getEmployeeId())
+                .status(prediction.getStatus() != null ? PredictionStatus.valueOf(prediction.getStatus().name()) : null)
+                .resultLabel(prediction.getPredictionResult())
+                .probability(prediction.getConfidence())
+                .createdAt(prediction.getCreatedAt())
+                .completedAt(prediction.getCompletedAt());
+        if (snapshot != null) {
+            builder
+                .age(snapshot.getAge())
+                .experience(snapshot.getExperience())
+                .income(snapshot.getIncome())
+                .family(snapshot.getFamily())
+                .education(snapshot.getEducation())
+                .mortgage(snapshot.getMortgage())
+                .securitiesAccount(snapshot.getSecuritiesAccount())
+                .cdAccount(snapshot.getCdAccount())
+                .online(snapshot.getOnline())
+                .creditCard(snapshot.getCreditCard())
+                .ccAvg(snapshot.getCcAvg());
+        }
+
+        return builder.build();
     }
 
     /**

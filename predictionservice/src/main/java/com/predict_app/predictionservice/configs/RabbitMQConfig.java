@@ -55,11 +55,17 @@ public class RabbitMQConfig {
     @Value("${rabbitmq.exchange.prediction-completed}")
     private String predictionCompletedExchangeName;
 
-    @Value("${rabbitmq.queue.prediction-completed}")
-    private String predictionCompletedQueueName;
+    @Value("${rabbitmq.queue.prediction-completed-customer}")
+    private String predictionCompletedCustomerQueueName;
 
-    @Value("${rabbitmq.routing-key.prediction-completed}")
-    private String predictionCompletedRoutingKey;
+    @Value("${rabbitmq.routing-key.prediction-completed-customer}")
+    private String predictionCompletedCustomerRoutingKey;
+
+    @Value("${rabbitmq.queue.prediction-completed-analytics}")
+    private String predictionCompletedAnalyticsQueueName;
+
+    @Value("${rabbitmq.routing-key.prediction-completed-analytics}")
+    private String predictionCompletedAnalyticsRoutingKey;
 
     // Exchange Customer Profile Requested
     @Bean
@@ -153,18 +159,34 @@ public class RabbitMQConfig {
     
     // Queue Prediction Completed
     @Bean
-    public Queue predictionCompletedQueue() {
-        return QueueBuilder.durable(predictionCompletedQueueName).build();
+    public Queue predictionCompletedCustomerQueue() {
+        return QueueBuilder.durable(predictionCompletedCustomerQueueName).build();
     }
     
     // Bindings
     @Bean
-    public Binding predictionCompletedBinding() {
+    public Binding predictionCompletedCustomerBinding() {
         return BindingBuilder
-                .bind(predictionCompletedQueue())
+                .bind(predictionCompletedCustomerQueue())
                 .to(predictionCompletedExchange())
-                .with(predictionCompletedRoutingKey);
+                .with(predictionCompletedCustomerRoutingKey);
     }
+
+    // Queue Prediction Completed Analytics
+    @Bean
+    public Queue predictionCompletedAnalyticsQueue() {
+        return QueueBuilder.durable(predictionCompletedAnalyticsQueueName).build();
+    }
+
+    // Bindings
+    @Bean
+    public Binding predictionCompletedAnalyticsBinding() {
+        return BindingBuilder
+                .bind(predictionCompletedAnalyticsQueue())
+                .to(predictionCompletedExchange())
+                .with(predictionCompletedAnalyticsRoutingKey);
+    }
+
     // Message Converter
     @Bean
     public Jackson2JsonMessageConverter messageConverter(ObjectMapper objectMapper) {

@@ -1,5 +1,7 @@
 package com.predict_app.predictionservice.listeners.impl;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.predict_app.predictionservice.dtos.events.CustomerEnrichedEventDto;
 import com.predict_app.predictionservice.listeners.CustomerProfileListener;
 import com.predict_app.predictionservice.services.PredictionService;
@@ -27,9 +29,16 @@ public class CustomerProfileListenerImpl implements CustomerProfileListener {
     @Autowired
     private final PredictionEventPublisher predictionEventPublisher;
 
-    public CustomerProfileListenerImpl(PredictionService predictionService, PredictionEventPublisher predictionEventPublisher) {
+    @Autowired
+    private final ObjectMapper objectMapper;
+
+    public CustomerProfileListenerImpl(
+            PredictionService predictionService,
+            PredictionEventPublisher predictionEventPublisher,
+            ObjectMapper objectMapper) {
         this.predictionService = predictionService;
         this.predictionEventPublisher = predictionEventPublisher;
+        this.objectMapper = objectMapper;
     }
 
     @RabbitListener(queues = "${rabbitmq.queue.customer-profile-enriched}")
@@ -64,9 +73,18 @@ public class CustomerProfileListenerImpl implements CustomerProfileListener {
                 throw new RuntimeException("Customer is required");
             }
             
-            logger.debug("💾 [PREDICTION] Saving customer input data to prediction - PredictionId: {}", predictionId);
-            predictionService.setInputData(event.getPredictionId(), event.getCustomer().toString());
-            logger.info("✅ [PREDICTION] Customer input data saved - PredictionId: {}", predictionId);
+            logger.debug("💾 [PREDICTION] Saving customer input data (JSON) to prediction - PredictionId: {}", predictionId);
+            String customerJson;
+            try {
+                customerJson = objectMapper.writeValueAsString(event.getCustomer());
+            } catch (JsonProcessingException e) {
+                logger.error("❌ [PREDICTION] Failed to serialize customer data to JSON - PredictionId: {}, Error: {}",
+                    predictionId, e.getMessage(), e);
+                throw new RuntimeException("Failed to serialize customer data to JSON", e);
+            }
+
+            predictionService.setInputData(event.getPredictionId(), customerJson);
+            logger.info("✅ [PREDICTION] Customer input data (JSON) saved - PredictionId: {}", predictionId);
 
             logger.debug("🔄 [PREDICTION] Building ModelPredictRequestedEventDto - PredictionId: {}, CustomerId: {}", 
                 predictionId, customerId);
