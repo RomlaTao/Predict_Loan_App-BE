@@ -16,7 +16,7 @@ public class PredictionCompletedAnalysticEventDto {
     private UUID predictionId;
     private UUID customerId;
     private UUID employeeId;
-    private PredictionStatus status;
+    private PredictionStatus predictionStatus;
     private Boolean resultLabel;
     private Double probability;
     private LocalDateTime createdAt;

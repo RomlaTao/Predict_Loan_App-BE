@@ -12,36 +12,26 @@ import com.predict_app.predictionservice.dtos.events.PredictionCompletedAnalysti
 import com.predict_app.predictionservice.dtos.events.CustomerEnrichedEventDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
+@RequiredArgsConstructor
 @Service
 public class PredictionServiceImpl implements PredictionService {
 
-    @Autowired
+    private static final Logger logger = LoggerFactory.getLogger(PredictionServiceImpl.class);
     private final PredictionRepository predictionRepository;
-
-    @Autowired
     private final PredictionEventPublisher predictionEventPublisher;
-
-    @Autowired
     private final ObjectMapper objectMapper;
     
-    public PredictionServiceImpl(
-            PredictionRepository predictionRepository,
-            PredictionEventPublisher predictionEventPublisher,
-            ObjectMapper objectMapper) {
-        this.predictionRepository = predictionRepository;
-        this.predictionEventPublisher = predictionEventPublisher;
-        this.objectMapper = objectMapper;
-    }
-
     @Override
     public PredictionResponseDto createPrediction(PredictionRequestDto request, UUID staffId) {
         // Validation is handled by @Valid annotation in controller
@@ -137,6 +127,7 @@ public class PredictionServiceImpl implements PredictionService {
         prediction.setStatus(PredictionStatus.COMPLETED);
         prediction.setCompletedAt(LocalDateTime.now());
         predictionRepository.save(prediction);
+        logger.info("Prediction result set: PredictionId: {}, ResultLabel: {}, Probability: {}", predictionId, resultLabel, probability);
     }
 
     @Override
@@ -162,7 +153,7 @@ public class PredictionServiceImpl implements PredictionService {
                 .predictionId(prediction.getPredictionId())
                 .customerId(prediction.getCustomerId())
                 .employeeId(prediction.getEmployeeId())
-                .status(prediction.getStatus() != null ? PredictionStatus.valueOf(prediction.getStatus().name()) : null)
+                .predictionStatus(prediction.getStatus() != null ? PredictionStatus.valueOf(prediction.getStatus().name()) : null)
                 .resultLabel(prediction.getPredictionResult())
                 .probability(prediction.getConfidence())
                 .createdAt(prediction.getCreatedAt())
