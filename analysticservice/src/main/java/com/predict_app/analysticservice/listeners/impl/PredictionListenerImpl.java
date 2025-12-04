@@ -50,7 +50,7 @@ public class PredictionListenerImpl implements PredictionListener {
                 .predictionId(event.getPredictionId())
                 .customerId(event.getCustomerId())
                 .employeeId(event.getEmployeeId())
-                .status(event.getStatus() != null ? PredictionStatus.valueOf(event.getStatus()) : null)
+                .predictionStatus(event.getPredictionStatus() != null ? PredictionStatus.valueOf(event.getPredictionStatus()) : null)
                 .resultLabel(event.getResultLabel())
                 .probability(event.getProbability())
                 .createdAt(event.getCreatedAt())

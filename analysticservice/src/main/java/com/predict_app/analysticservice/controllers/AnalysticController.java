@@ -4,6 +4,7 @@ import com.predict_app.analysticservice.services.AnalysticService;
 import com.predict_app.analysticservice.dtos.AnalysticResponseDto;
 import com.predict_app.analysticservice.dtos.AnalysticStatDto;
 import com.predict_app.analysticservice.enums.PredictionStatus;
+import com.predict_app.analysticservice.dtos.EmployeePredictionCountDto;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import lombok.RequiredArgsConstructor;
 import java.util.UUID;
 import java.util.List;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @RestController
@@ -19,12 +21,21 @@ import java.time.LocalDateTime;
 public class AnalysticController {
     private final AnalysticService analysticService;
 
-    @GetMapping("/{predictionId}")
+    @GetMapping("/prediction/{predictionId}")
     public ResponseEntity<AnalysticResponseDto> getAnalysticDataById(
         @PathVariable UUID predictionId,
         @RequestHeader("X-User-Role") String role) {
         if (role.equals("ROLE_RISK_ANALYST")) {
             return ResponseEntity.ok(analysticService.getAnalysticDataById(predictionId));
+        } else {
+            throw new RuntimeException("You are not authorized to get this analystic data");
+        }
+    }
+
+    @GetMapping("/predictions")
+    public ResponseEntity<List<AnalysticResponseDto>> getAllAnalysticsData(@RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(analysticService.getAllAnalysticsData());
         } else {
             throw new RuntimeException("You are not authorized to get this analystic data");
         }
@@ -62,7 +73,7 @@ public class AnalysticController {
     }
 
     @GetMapping("/date-range/from={startDate}&to={endDate}")
-    public ResponseEntity<List<AnalysticResponseDto>> getAnalysticsDataByDateRange(@PathVariable LocalDateTime startDate, @PathVariable LocalDateTime endDate,
+    public ResponseEntity<List<AnalysticResponseDto>> getAnalysticsDataByDateRange(@PathVariable LocalDate startDate, @PathVariable LocalDate endDate,
         @RequestHeader("X-User-Role") String role) {
         if (role.equals("ROLE_RISK_ANALYST")) {
             return ResponseEntity.ok(analysticService.getAnalysticsDataByDateRange(startDate, endDate));
@@ -111,10 +122,19 @@ public class AnalysticController {
     }
 
     @GetMapping("/stat/date-range/from={startDate}&to={endDate}")
-    public ResponseEntity<AnalysticStatDto> getAnalysticStatDataByDateRange(@PathVariable LocalDateTime startDate, @PathVariable LocalDateTime endDate,
+    public ResponseEntity<AnalysticStatDto> getAnalysticStatDataByDateRange(@PathVariable LocalDate startDate, @PathVariable LocalDate endDate,
         @RequestHeader("X-User-Role") String role) {
         if (role.equals("ROLE_RISK_ANALYST")) {
             return ResponseEntity.ok(analysticService.getAnalysticStatDataByDateRange(startDate, endDate));
+        } else {
+            throw new RuntimeException("You are not authorized to get this analystic data");
+        }
+    }
+
+    @GetMapping("/employee-prediction-counts")
+    public ResponseEntity<List<EmployeePredictionCountDto>> getEmployeePredictionCounts(@RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(analysticService.getEmployeePredictionCounts());
         } else {
             throw new RuntimeException("You are not authorized to get this analystic data");
         }

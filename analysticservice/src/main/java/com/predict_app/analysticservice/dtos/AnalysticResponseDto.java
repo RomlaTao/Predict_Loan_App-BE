@@ -22,13 +22,11 @@ public class AnalysticResponseDto {
     private UUID predictionId;
     private UUID customerId;
     private UUID employeeId; 
-    private PredictionStatus status; 
+    private PredictionStatus predictionStatus; 
     private Boolean resultLabel;  
     private Double probability;
     private LocalDateTime createdAt; 
     private LocalDateTime completedAt;
-    private LocalDateTime startDate;
-    private LocalDateTime endDate;
 
     // Snapshot of key customer attributes at prediction time
     private Integer age;

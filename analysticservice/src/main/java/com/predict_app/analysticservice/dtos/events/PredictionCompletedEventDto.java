@@ -15,7 +15,7 @@ public class PredictionCompletedEventDto {
     private UUID predictionId;
     private UUID customerId;
     private UUID employeeId;
-    private String status;
+    private String predictionStatus;
     private Boolean resultLabel;
     private Double probability;
     private LocalDateTime createdAt;

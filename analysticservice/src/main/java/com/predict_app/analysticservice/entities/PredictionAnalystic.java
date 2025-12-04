@@ -24,7 +24,7 @@ public class PredictionAnalystic {
     private UUID employeeId;
     
     @Column(name = "status")
-    private PredictionStatus status;
+    private PredictionStatus predictionStatus;
     
     @Column(name = "result_label")
     private Boolean resultLabel;

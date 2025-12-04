@@ -3,6 +3,7 @@ package com.predict_app.analysticservice.services.impl;
 import com.predict_app.analysticservice.repositories.AnalysticRepository;
 import com.predict_app.analysticservice.dtos.AnalysticResponseDto;
 import com.predict_app.analysticservice.dtos.AnalysticStatDto;
+import com.predict_app.analysticservice.dtos.EmployeePredictionCountDto;
 import com.predict_app.analysticservice.entities.PredictionAnalystic;
 import com.predict_app.analysticservice.enums.PredictionStatus;
 import com.predict_app.analysticservice.services.AnalysticService;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Service;
 import lombok.RequiredArgsConstructor;
 
 import java.util.UUID;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -27,6 +29,14 @@ public class AnalysticServiceImpl implements AnalysticService {
         return buildAnalysticResponseDto(predictionAnalystic);
     }
     
+    @Override
+    public List<AnalysticResponseDto> getAllAnalysticsData() {
+        List<PredictionAnalystic> predictionAnalystics = analysticRepository.findAll();
+        return predictionAnalystics.stream()
+            .map(this::buildAnalysticResponseDto)
+            .toList();
+    }
+
     @Override
     public List<AnalysticResponseDto> getAnalysticsDataByCustomerId(UUID customerId) {
         List<PredictionAnalystic> predictionAnalystics = analysticRepository.findByCustomerId(customerId);
@@ -65,8 +75,10 @@ public class AnalysticServiceImpl implements AnalysticService {
     }
 
     @Override
-    public AnalysticStatDto getAnalysticStatDataByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        List<PredictionAnalystic> predictionAnalystics = analysticRepository.findByCompletedAtBetween(startDate, endDate);
+    public AnalysticStatDto getAnalysticStatDataByDateRange(LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atStartOfDay();
+        List<PredictionAnalystic> predictionAnalystics = analysticRepository.findByCompletedAtBetween(startDateTime, endDateTime);
         Long totalAcceptedPredictions = 0L;
         Long totalRejectedPredictions = 0L;
         Long totalPredictions = (long) predictionAnalystics.size();
@@ -87,8 +99,10 @@ public class AnalysticServiceImpl implements AnalysticService {
     }
 
     @Override
-    public List<AnalysticResponseDto> getAnalysticsDataByDateRange(LocalDateTime startDate, LocalDateTime endDate) {
-        List<PredictionAnalystic> predictionAnalystics = analysticRepository.findByCompletedAtBetween(startDate, endDate);
+    public List<AnalysticResponseDto> getAnalysticsDataByDateRange(LocalDate startDate, LocalDate endDate) {
+        LocalDateTime startDateTime = startDate.atStartOfDay();
+        LocalDateTime endDateTime = endDate.atStartOfDay();
+        List<PredictionAnalystic> predictionAnalystics = analysticRepository.findByCompletedAtBetween(startDateTime, endDateTime);
         return predictionAnalystics.stream()
             .map(this::buildAnalysticResponseDto)
             .toList();
@@ -118,12 +132,17 @@ public class AnalysticServiceImpl implements AnalysticService {
             .toList();
     }
 
+    @Override
+    public List<EmployeePredictionCountDto> getEmployeePredictionCounts() {
+        return analysticRepository.getEmployeePredictionCounts();
+    }
+
     private AnalysticResponseDto buildAnalysticResponseDto(PredictionAnalystic predictionAnalystic) {
         return AnalysticResponseDto.builder()
             .predictionId(predictionAnalystic.getPredictionId())
             .customerId(predictionAnalystic.getCustomerId())
             .employeeId(predictionAnalystic.getEmployeeId())
-            .status(predictionAnalystic.getStatus())
+            .predictionStatus(predictionAnalystic.getPredictionStatus())
             .resultLabel(predictionAnalystic.getResultLabel())
             .probability(predictionAnalystic.getProbability())
             .createdAt(predictionAnalystic.getCreatedAt())
