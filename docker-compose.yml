@@ -429,6 +429,7 @@ services:
       PORT: 8009
       DEBUG: "false"
       # Eureka Service Discovery Configuration
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
       EUREKA_ENABLED: "true"
       EUREKA_APP_NAME: ml-model-service
       EUREKA_INSTANCE_HOST: ml-model-service
@@ -445,12 +446,13 @@ services:
         condition: service_started
       eureka-server:
         condition: service_started
+    # ❗ Healthcheck chuẩn FastAPI
     healthcheck:
-      test: ["CMD-SHELL", "curl -f ${EUREKA_SERVER_URL}/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8009/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
+      start_period: 20s
 
   # AnalysticService (Analytics Management)
   analysticservice:
