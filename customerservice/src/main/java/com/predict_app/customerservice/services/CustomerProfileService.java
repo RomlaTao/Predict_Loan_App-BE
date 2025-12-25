@@ -11,6 +11,7 @@ public interface CustomerProfileService {
     List<CustomerProfileResponseDto> createCustomers(List<CustomerProfileRequestDto> requests);
     CustomerProfileResponseDto updateCustomer(UUID customerId, CustomerProfileRequestDto request, UUID staffId);
     CustomerProfileResponseDto getProfileByCustomerId(UUID customerId, UUID staffId, String role);
+    CustomerProfileResponseDto getProfileByCustomerSlug(String customerSlug, UUID staffId, String role);
     List<CustomerProfileResponseDto> getAllCustomers();
     List<CustomerProfileResponseDto> getApprovedCustomers();
     List<CustomerProfileResponseDto> getRejectedCustomers();

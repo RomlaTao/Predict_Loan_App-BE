@@ -19,8 +19,8 @@ def load_model_and_scaler():
     global knn_model, scaler
     try:
         # Adjust the paths if necessary based on where the files are deployed
-        model_path = 'knn_model.joblib'
-        scaler_path = 'scaler.joblib'
+        model_path = 'Predict-Loan-App_BE/ml-model-service/backup/models/knn_model.joblib'
+        scaler_path = 'Predict-Loan-App_BE/ml-model-service/backup/models/scaler.joblib'
         knn_model = joblib.load(model_path)
         scaler = joblib.load(scaler_path)
         print("Model and scaler loaded successfully.")
@@ -113,4 +113,4 @@ if __name__ == '__main__':
     load_model_and_scaler()
     # Run the Flask app
     # debug=True is useful for development, set to False in production
-    app.run(debug=True, port=8009) # You can change the port as needed
+    app.run(debug=True, port=8013) # You can change the port as needed

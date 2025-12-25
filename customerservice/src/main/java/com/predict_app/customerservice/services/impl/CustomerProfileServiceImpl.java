@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.predict_app.customerservice.utils.SlugUtil;
 
 import java.util.List;
 import java.util.UUID;
@@ -19,6 +20,7 @@ import java.util.UUID;
 public class CustomerProfileServiceImpl implements CustomerProfileService {
 
     private final CustomerProfileRepository customerProfileRepository;
+    private final SlugUtil slugUtil;
 
     @Transactional
     @Override
@@ -36,6 +38,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
         // Authorization is handled by @PreAuthorize in controller
         CustomerProfile customerProfile = CustomerProfile.builder()
             .customerId(request.getCustomerId())
+            .customerSlug(slugUtil.generateSlug(request.getFullName()))
             .fullName(request.getFullName())
             .email(request.getEmail())
             .age(request.getAge())
@@ -101,6 +104,18 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
         return profiles.stream()
                 .map(this::mapToResponseDto)
                 .toList();
+    }
+
+    @Override
+    public CustomerProfileResponseDto getProfileByCustomerSlug(String customerSlug, UUID staffId, String role) {
+        CustomerProfile customerProfile = customerProfileRepository.findByCustomerSlug(customerSlug)
+                .orElseThrow(() -> new RuntimeException("Customer profile not found"));
+        if (role.equals("ROLE_STAFF")) {
+            if (!staffId.equals(customerProfile.getStaffId())) {
+                throw new RuntimeException("You are not authorized to view this customer profile");
+            }
+        }
+        return mapToResponseDto(customerProfile);
     }
 
     @Transactional
@@ -210,6 +225,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
     private CustomerProfile mapToEntity(CustomerProfileRequestDto request) {
         return CustomerProfile.builder()
                 .customerId(request.getCustomerId())
+                .customerSlug(slugUtil.generateSlug(request.getFullName()))
                 .fullName(request.getFullName())
                 .email(request.getEmail())
                 .age(request.getAge())
@@ -231,6 +247,7 @@ public class CustomerProfileServiceImpl implements CustomerProfileService {
     private CustomerProfileResponseDto mapToResponseDto(CustomerProfile customerProfile) {
         return CustomerProfileResponseDto.builder()
                 .customerId(customerProfile.getCustomerId())
+                .customerSlug(customerProfile.getCustomerSlug())
                 .fullName(customerProfile.getFullName())
                 .email(customerProfile.getEmail())
                 .age(customerProfile.getAge())

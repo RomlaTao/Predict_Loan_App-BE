@@ -43,6 +43,18 @@ public class CustomerProfileController {
         }
     }
 
+    @GetMapping("/slug/{customerSlug}")
+    public ResponseEntity<CustomerProfileResponseDto> getCustomerBySlug(
+            @PathVariable String customerSlug,
+            @RequestHeader("X-User-Id") UUID staffId,
+            @RequestHeader("X-User-Role") String role) {
+        if (role.equals("ROLE_STAFF") || role.equals("ROLE_RISK_ANALYST")) {
+            return ResponseEntity.ok(customerProfileService.getProfileByCustomerSlug(customerSlug, staffId, role));
+        } else {
+            throw new RuntimeException("You are not authorized to get this customer");
+        }
+    }
+
     @GetMapping("/{customerId}")
     public ResponseEntity<CustomerProfileResponseDto> getCustomer(
             @PathVariable UUID customerId, 

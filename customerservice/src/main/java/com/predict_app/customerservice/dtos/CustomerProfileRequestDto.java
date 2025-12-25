@@ -11,6 +11,7 @@ import java.util.UUID;
 @Builder
 public class CustomerProfileRequestDto {
     private UUID customerId;
+    private String customerSlug;
     private String fullName;
     private String email;
     private Integer age;

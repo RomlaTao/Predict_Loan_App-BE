@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.predict_app.predictionservice.dtos.events.CustomerEnrichedEventDto;
 import com.predict_app.predictionservice.listeners.CustomerProfileListener;
 import com.predict_app.predictionservice.services.PredictionService;
+import com.predict_app.predictionservice.services.CurrencyConverterService;
 import com.predict_app.predictionservice.dtos.events.ModelPredictRequestedEventDto;
 import com.predict_app.predictionservice.publishers.PredictionEventPublisher;
 
@@ -32,13 +33,18 @@ public class CustomerProfileListenerImpl implements CustomerProfileListener {
     @Autowired
     private final ObjectMapper objectMapper;
 
+    @Autowired
+    private final CurrencyConverterService currencyConverterService;
+
     public CustomerProfileListenerImpl(
             PredictionService predictionService,
             PredictionEventPublisher predictionEventPublisher,
-            ObjectMapper objectMapper) {
+            ObjectMapper objectMapper,
+            CurrencyConverterService currencyConverterService) {
         this.predictionService = predictionService;
         this.predictionEventPublisher = predictionEventPublisher;
         this.objectMapper = objectMapper;
+        this.currencyConverterService = currencyConverterService;
     }
 
     @RabbitListener(queues = "${rabbitmq.queue.customer-profile-enriched}")
@@ -52,9 +58,9 @@ public class CustomerProfileListenerImpl implements CustomerProfileListener {
             ? event.getCustomer().getCustomerId().toString() 
             : "null";
         
-        logger.info("📥 [PREDICTION] Received CustomerEnrichedEvent - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
+        logger.info("[PREDICTION] Received CustomerEnrichedEvent - PredictionId: {}, CustomerId: {}, DeliveryTag: {}", 
             predictionId, customerId, deliveryTag);
-        logger.debug("📥 [PREDICTION] Customer data - FullName: {}, Age: {}, Income: {}, EnrichedAt: {}", 
+        logger.debug("[PREDICTION] Customer data - FullName: {}, Age: {}, Income: {}, EnrichedAt: {}", 
             event.getCustomer() != null ? event.getCustomer().getFullName() : "null",
             event.getCustomer() != null ? event.getCustomer().getAge() : "null",
             event.getCustomer() != null ? event.getCustomer().getIncome() : "null",
@@ -63,12 +69,12 @@ public class CustomerProfileListenerImpl implements CustomerProfileListener {
         try {
             // Validation
             if (event.getPredictionId() == null) {
-                logger.error("❌ [PREDICTION] Validation failed: Prediction ID is required - DeliveryTag: {}", deliveryTag);
+                logger.error("[PREDICTION] Validation failed: Prediction ID is required - DeliveryTag: {}", deliveryTag);
                 throw new RuntimeException("Prediction ID is required");
             }
             
             if (event.getCustomer() == null) {
-                logger.error("❌ [PREDICTION] Validation failed: Customer is required - PredictionId: {}, DeliveryTag: {}", 
+                logger.error("[PREDICTION] Validation failed: Customer is required - PredictionId: {}, DeliveryTag: {}", 
                     predictionId, deliveryTag);
                 throw new RuntimeException("Customer is required");
             }
@@ -78,35 +84,49 @@ public class CustomerProfileListenerImpl implements CustomerProfileListener {
             try {
                 customerJson = objectMapper.writeValueAsString(event.getCustomer());
             } catch (JsonProcessingException e) {
-                logger.error("❌ [PREDICTION] Failed to serialize customer data to JSON - PredictionId: {}, Error: {}",
+                logger.error("[PREDICTION] Failed to serialize customer data to JSON - PredictionId: {}, Error: {}",
                     predictionId, e.getMessage(), e);
                 throw new RuntimeException("Failed to serialize customer data to JSON", e);
             }
 
             predictionService.setInputData(event.getPredictionId(), customerJson);
-            logger.info("✅ [PREDICTION] Customer input data (JSON) saved - PredictionId: {}", predictionId);
+            logger.info("[PREDICTION] Customer input data (JSON) saved - PredictionId: {}", predictionId);
 
-            logger.debug("🔄 [PREDICTION] Building ModelPredictRequestedEventDto - PredictionId: {}, CustomerId: {}", 
+            logger.debug("[PREDICTION] Building ModelPredictRequestedEventDto - PredictionId: {}, CustomerId: {}", 
                 predictionId, customerId);
+            
+            // Convert VND to USD for model input (model expects values in *000USD)
+            // Customer data is in VND, so we need to convert: income, mortgage, ccAvg
+            Double incomeVnd = event.getCustomer().getIncome();
+            Double mortgageVnd = event.getCustomer().getMortgage();
+            Double ccAvgVnd = event.getCustomer().getCcAvg();
+            
+            Double incomeUsd = currencyConverterService.convertVndToUsd(incomeVnd);
+            Double mortgageUsd = currencyConverterService.convertVndToUsd(mortgageVnd);
+            Double ccAvgUsd = currencyConverterService.convertVndToUsd(ccAvgVnd);
+            
+            logger.info("[PREDICTION] Currency conversion - Income: {} VND → {} USD, Mortgage: {} VND → {} USD, CCAvg: {} VND → {} USD", 
+                incomeVnd, incomeUsd, mortgageVnd, mortgageUsd, ccAvgVnd, ccAvgUsd);
+            
             ModelPredictRequestedEventDto modelPredictRequestedEventDto = ModelPredictRequestedEventDto.builder()
                 .predictionId(event.getPredictionId())
                 .customerId(event.getCustomer().getCustomerId())
                 .input(ModelPredictRequestedEventDto.ModelInputDto.builder()
                     .age(event.getCustomer().getAge())
                     .experience(event.getCustomer().getExperience())
-                    .income(event.getCustomer().getIncome())
+                    .income(incomeUsd) // Converted to USD
                     .family(event.getCustomer().getFamily())
                     .education(event.getCustomer().getEducation())
-                    .mortgage(event.getCustomer().getMortgage())
+                    .mortgage(mortgageUsd) // Converted to USD
                     .securitiesAccount(event.getCustomer().getSecuritiesAccount())
                     .cdAccount(event.getCustomer().getCdAccount())
                     .online(event.getCustomer().getOnline())
                     .creditCard(event.getCustomer().getCreditCard())
-                    .ccAvg(event.getCustomer().getCcAvg())
+                    .ccAvg(ccAvgUsd) // Converted to USD
                     .build())
                 .build();
 
-            logger.info("📤 [PREDICTION→ML_MODEL] Publishing ModelPredictRequestedEvent - PredictionId: {}, CustomerId: {}", 
+            logger.info("[PREDICTION→ML_MODEL] Publishing ModelPredictRequestedEvent - PredictionId: {}, CustomerId: {}", 
                 predictionId, customerId);
             predictionEventPublisher.publishModelPredictRequestedEvent(modelPredictRequestedEventDto);
 
@@ -114,30 +134,30 @@ public class CustomerProfileListenerImpl implements CustomerProfileListener {
             try {
                 if (channel.isOpen()) {
                     channel.basicAck(deliveryTag, false);
-                    logger.debug("✅ [PREDICTION] Message acknowledged - DeliveryTag: {}", deliveryTag);
+                    logger.debug("[PREDICTION] Message acknowledged - DeliveryTag: {}", deliveryTag);
                 } else {
-                    logger.warn("⚠️ [PREDICTION] Channel is closed, cannot acknowledge message - DeliveryTag: {}", deliveryTag);
+                    logger.warn("[PREDICTION] Channel is closed, cannot acknowledge message - DeliveryTag: {}", deliveryTag);
                 }
             } catch (IOException ackException) {
-                logger.error("❌ [PREDICTION] Failed to acknowledge message - DeliveryTag: {}, Error: {}", 
+                logger.error("[PREDICTION] Failed to acknowledge message - DeliveryTag: {}, Error: {}", 
                     deliveryTag, ackException.getMessage(), ackException);
                 // Don't throw - message already processed successfully
             }
             
             long processingTime = System.currentTimeMillis() - startTime;
-            logger.info("✅ [PREDICTION] Successfully processed CustomerEnrichedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}", 
+            logger.info("[PREDICTION] Successfully processed CustomerEnrichedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}", 
                 predictionId, customerId, processingTime, deliveryTag);
             
         } catch (Exception e) {
             long processingTime = System.currentTimeMillis() - startTime;
-            logger.error("❌ [PREDICTION] Failed to process CustomerEnrichedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}, Error: {}", 
+            logger.error("[PREDICTION] Failed to process CustomerEnrichedEvent - PredictionId: {}, CustomerId: {}, ProcessingTime: {}ms, DeliveryTag: {}, Error: {}", 
                 predictionId, customerId, processingTime, deliveryTag, e.getMessage(), e);
             try {
                 // Reject và không requeue
                 channel.basicNack(deliveryTag, false, false);
-                logger.warn("⚠️ [PREDICTION] Message rejected and not requeued - DeliveryTag: {}", deliveryTag);
+                logger.warn("[PREDICTION] Message rejected and not requeued - DeliveryTag: {}", deliveryTag);
             } catch (IOException ioException) {
-                logger.error("❌ [PREDICTION] Failed to acknowledge/reject message - DeliveryTag: {}, Error: {}", 
+                logger.error("[PREDICTION] Failed to acknowledge/reject message - DeliveryTag: {}, Error: {}", 
                     deliveryTag, ioException.getMessage(), ioException);
                 throw new RuntimeException("Failed to acknowledge message", ioException);
             }

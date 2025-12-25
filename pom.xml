@@ -18,6 +18,7 @@
         <module>customerservice</module>
         <module>predictionservice</module>
         <module>analysticservice</module>
+        <module>currencyservice</module>
     </modules>
 
     <name>Predict App BE</name>

@@ -381,6 +381,9 @@ services:
       RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_CUSTOMER: prediction.completed-customer
       RABBITMQ_QUEUE_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
       RABBITMQ_ROUTING_KEY_PREDICTION_COMPLETED_ANALYTICS: prediction.completed-analytics
+      
+      # CurrencyService Configuration
+      CURRENCY_SERVICE_URL: ${CURRENCY_SERVICE_URL}
     networks:
       - predict-app-network
     restart: unless-stopped
@@ -453,6 +456,37 @@ services:
       timeout: 10s
       retries: 5
       start_period: 20s
+
+  # CurrencyService (Currency Exchange Rate Management)
+  currencyservice:
+    build:
+      context: ./currencyservice
+      dockerfile: Dockerfile
+    container_name: currencyservice
+    ports:
+      - "8011:8011"
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      EUREKA_SERVER_URL: ${EUREKA_SERVER_URL}
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: 6379
+      CURRENCY_API_URL: ${CURRENCY_API_URL}
+      CURRENCY_FALLBACK_RATE: ${CURRENCY_FALLBACK_RATE}
+      CURRENCY_UPDATE_INTERVAL: ${CURRENCY_UPDATE_INTERVAL}
+    networks:
+      - predict-app-network
+    restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
+      eureka-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8011/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
 
   # AnalysticService (Analytics Management)
   analysticservice:

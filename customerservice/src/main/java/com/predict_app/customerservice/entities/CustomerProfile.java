@@ -24,6 +24,9 @@ public class CustomerProfile {
     @Column(nullable = false, unique = true)
     private String email; // từ authservice
 
+    @Column(nullable = false, unique = true)
+    private String customerSlug;
+
     @Column(nullable = false)
     private Integer age;
 
